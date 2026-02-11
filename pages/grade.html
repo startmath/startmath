@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StartMath</title>
+  <meta name="description" content="Теми по математика - StartMath">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/main.css">
+  <link rel="stylesheet" href="../styles/components.css">
+  <link rel="stylesheet" href="../styles/responsive.css">
+</head>
+<body>
+  <header class="page-header">
+    <div class="container">
+      <a href="../index.html" class="logo">
+        <span class="logo-icon">S</span>
+        StartMath
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="breadcrumb">
+      <a href="../index.html">Начало</a>
+      <span class="separator">›</span>
+      <span id="breadcrumb-grade" class="current">Зареждане...</span>
+    </nav>
+
+    <section class="section-title">
+      <h1 id="grade-title">Зареждане...</h1>
+      <p id="grade-description"></p>
+    </section>
+
+    <div id="topics-grid" class="cards-grid">
+      <div class="loading">
+        <div class="spinner"></div>
+        Зареждане...
+      </div>
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <div class="container">
+      <p>&copy; 2025 StartMath. Всички права запазени.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="../js/app.js"></script>
+</body>
+</html>

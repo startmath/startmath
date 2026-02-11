@@ -1,0 +1,133 @@
+/* ===== Mobile-first (base = <600px) ===== */
+
+/* Swiper nav arrows hidden on mobile */
+.swiper-button-next,
+.swiper-button-prev {
+  display: none !important;
+}
+
+/* ===== Tablet (600px+) ===== */
+@media (min-width: 600px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hero h1 {
+    font-size: 2.8rem;
+  }
+
+  .swiper-button-next,
+  .swiper-button-prev {
+    display: flex !important;
+  }
+
+  .question-card {
+    padding: 2rem;
+  }
+}
+
+/* ===== Desktop (1024px+) ===== */
+@media (min-width: 1024px) {
+  .cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .hero h1 {
+    font-size: 3rem;
+  }
+
+  .hero {
+    padding: 4rem 0 3rem;
+  }
+
+  .tab-content {
+    padding: 2rem;
+  }
+
+  .summary-swiper-wrap {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .quiz-wrap {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .slide-card {
+    min-height: 320px;
+    padding: 2rem;
+  }
+
+  h1 { font-size: 2.25rem; }
+
+  .page-header .container {
+    gap: 1.5rem;
+  }
+}
+
+/* ===== Large Desktop (1440px+) ===== */
+@media (min-width: 1440px) {
+  :root {
+    --max-width: 1320px;
+  }
+}
+
+/* ===== Touch targets ===== */
+@media (pointer: coarse) {
+  .option-btn {
+    min-height: 52px;
+    padding: 1rem;
+  }
+
+  .btn {
+    min-height: 52px;
+  }
+
+  .tab-btn {
+    min-height: 52px;
+  }
+
+  .subtopic-drawer button {
+    padding: 0.75rem;
+    min-height: 44px;
+  }
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ===== Print ===== */
+@media print {
+  .page-header,
+  .page-footer,
+  .tabs,
+  .swiper-button-next,
+  .swiper-button-prev,
+  .btn,
+  .subtopic-nav-toggle,
+  .subtopic-drawer {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .slide-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+  }
+}

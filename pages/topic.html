@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StartMath</title>
+  <meta name="description" content="Урок по математика - StartMath">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <!-- Swiper -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+  <link rel="stylesheet" href="../styles/main.css">
+  <link rel="stylesheet" href="../styles/components.css">
+  <link rel="stylesheet" href="../styles/responsive.css">
+</head>
+<body>
+  <header class="page-header">
+    <div class="container">
+      <a href="../index.html" class="logo">
+        <span class="logo-icon">S</span>
+        StartMath
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="breadcrumb">
+      <a href="../index.html">Начало</a>
+      <span class="separator">›</span>
+      <a id="breadcrumb-grade" href="#">Зареждане...</a>
+      <span class="separator">›</span>
+      <span id="breadcrumb-topic" class="current">Зареждане...</span>
+    </nav>
+
+    <section class="section-title" style="margin-bottom: 1rem;">
+      <h1 id="topic-title">Зареждане...</h1>
+    </section>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="summary">
+        <span>&#128218;</span> Обобщение
+      </button>
+      <button class="tab-btn" data-tab="quiz">
+        <span>&#9998;</span> Тест
+      </button>
+    </div>
+
+    <!-- Summary Tab -->
+    <div id="tab-summary" class="tab-content active">
+      <div class="summary-container">
+        <div class="summary-progress">
+          <span id="slide-counter">1 / 1</span>
+          <div class="progress-bar">
+            <div class="progress-fill" id="summary-progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <button class="subtopic-nav-toggle" id="subtopic-toggle">
+          &#9776; Подтеми
+        </button>
+        <div class="subtopic-drawer" id="subtopic-drawer"></div>
+
+        <div class="summary-swiper-wrap">
+          <div class="swiper" id="summary-swiper">
+            <div class="swiper-wrapper" id="slides-container">
+              <div class="swiper-slide">
+                <div class="slide-card">
+                  <div class="loading">
+                    <div class="spinner"></div>
+                    Зареждане...
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz Tab -->
+    <div id="tab-quiz" class="tab-content">
+      <div class="quiz-wrap" id="quiz-container">
+        <div class="quiz-intro">
+          <h2>&#127919; Провери знанията си</h2>
+          <p>Тестът съдържа 15 въпроса от всички подтеми. Числата се генерират на случаен принцип всеки път.</p>
+          <button class="btn btn-primary" id="start-quiz-btn">Започни теста</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <div class="container">
+      <p>&copy; 2025 StartMath. Всички права запазени.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="../js/app.js"></script>
+</body>
+</html>

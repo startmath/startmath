@@ -1,0 +1,14 @@
+{
+  "grade": "5",
+  "gradeTitle": "5 клас",
+  "topics": [
+    {
+      "id": "desetichni-drobi",
+      "title": "Десетични дроби",
+      "description": "Четене, записване, сравняване и аритметични действия с десетични дроби",
+      "icon": "🔢",
+      "subtopicCount": 18,
+      "active": true
+    }
+  ]
+}

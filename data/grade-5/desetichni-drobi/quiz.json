@@ -1,0 +1,248 @@
+{
+  "topicId": "desetichni-drobi",
+  "questionsPerQuiz": 15,
+  "templates": [
+    {
+      "id": "q-what-are-1",
+      "subtopic": "what-are",
+      "type": "multiple-choice",
+      "question": "Коя е дробната част на числото {num}?",
+      "generate": {
+        "num": { "type": "decimal", "intMin": 1, "intMax": 99, "decPlaces": [2, 3] }
+      },
+      "optionsFunc": "fractionPart",
+      "explanation": "Дробната част е числото след запетаята."
+    },
+    {
+      "id": "q-what-are-2",
+      "subtopic": "what-are",
+      "type": "multiple-choice",
+      "question": "Колко цифри след запетаята има числото {num}?",
+      "generate": {
+        "num": { "type": "decimal", "intMin": 0, "intMax": 50, "decPlaces": [1, 2, 3] }
+      },
+      "optionsFunc": "decimalPlacesCount",
+      "explanation": "Броим цифрите след запетаята."
+    },
+    {
+      "id": "q-read-write-1",
+      "subtopic": "read-write",
+      "type": "multiple-choice",
+      "question": "Коя обикновена дроб е равна на {num}?",
+      "generate": {
+        "num": { "type": "decimalSimple", "values": [0.1, 0.3, 0.7, 0.9, 0.01, 0.07, 0.03, 0.25, 0.75, 0.5, 0.125, 0.375] }
+      },
+      "optionsFunc": "decimalToFraction",
+      "explanation": "Преобразуваме десетичната дроб в обикновена."
+    },
+    {
+      "id": "q-compare-1",
+      "subtopic": "compare",
+      "type": "comparison",
+      "question": "Сравни: {a} ___ {b}",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 0, "intMax": 20, "decPlaces": [1, 2] },
+        "b": { "type": "decimalNear", "base": "a", "maxDiff": 0.5, "decPlaces": [1, 2] }
+      },
+      "answerFunc": "compareDecimals",
+      "explanation": "Сравняваме разред по разред отляво надясно."
+    },
+    {
+      "id": "q-compare-2",
+      "subtopic": "compare",
+      "type": "comparison",
+      "question": "Кое е вярно? {a} ___ {b}",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 0, "intMax": 10, "decPlaces": [2, 3] },
+        "b": { "type": "decimalNear", "base": "a", "maxDiff": 0.15, "decPlaces": [1, 2] }
+      },
+      "answerFunc": "compareDecimals",
+      "explanation": "Дописваме нули за да изравним цифрите след запетаята и сравняваме."
+    },
+    {
+      "id": "q-number-line-1",
+      "subtopic": "number-line",
+      "type": "multiple-choice",
+      "question": "Между кои две цели числа се намира {num}?",
+      "generate": {
+        "num": { "type": "decimal", "intMin": 0, "intMax": 20, "decPlaces": [1, 2] }
+      },
+      "optionsFunc": "betweenIntegers",
+      "explanation": "Цялата част показва долната граница."
+    },
+    {
+      "id": "q-round-natural-1",
+      "subtopic": "round-natural",
+      "type": "fill-in",
+      "question": "Закръгли {num} до {place}.",
+      "generate": {
+        "num": { "type": "integer", "min": 100, "max": 9999 },
+        "place": { "type": "choice", "values": ["десетици", "стотици"] }
+      },
+      "answerFunc": "roundNatural",
+      "explanation": "Гледаме цифрата вдясно от разреда: ≥5 → нагоре, <5 → надолу."
+    },
+    {
+      "id": "q-round-decimal-1",
+      "subtopic": "round-decimal",
+      "type": "fill-in",
+      "question": "Закръгли {num} до {place}.",
+      "generate": {
+        "num": { "type": "decimal", "intMin": 0, "intMax": 50, "decPlaces": [2, 3] },
+        "place": { "type": "choice", "values": ["десети", "стотни", "цяло число"] }
+      },
+      "answerFunc": "roundDecimal",
+      "explanation": "Гледаме следващата цифра: ≥5 → нагоре, <5 → надолу."
+    },
+    {
+      "id": "q-addition-1",
+      "subtopic": "addition",
+      "type": "fill-in",
+      "question": "Пресметни: {a} + {b} =",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 1, "intMax": 50, "decPlaces": [1, 2] },
+        "b": { "type": "decimal", "intMin": 1, "intMax": 50, "decPlaces": [1, 2] }
+      },
+      "answerFunc": "addDecimals",
+      "explanation": "Подреждаме запетаите една под друга и събираме."
+    },
+    {
+      "id": "q-add-props-1",
+      "subtopic": "add-properties",
+      "type": "multiple-choice",
+      "question": "Кой израз е равен на {a} + {b} + {c}?",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 1, "intMax": 20, "decPlaces": [1] },
+        "b": { "type": "decimal", "intMin": 1, "intMax": 20, "decPlaces": [1] },
+        "c": { "type": "decimal", "intMin": 1, "intMax": 20, "decPlaces": [1] }
+      },
+      "optionsFunc": "addProperties",
+      "explanation": "Разместителното и съдружителното свойство ни позволяват да групираме и разместваме събираемите."
+    },
+    {
+      "id": "q-subtraction-1",
+      "subtopic": "subtraction",
+      "type": "fill-in",
+      "question": "Пресметни: {a} − {b} =",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 10, "intMax": 100, "decPlaces": [1, 2] },
+        "b": { "type": "decimalSmaller", "base": "a", "decPlaces": [1, 2] }
+      },
+      "answerFunc": "subtractDecimals",
+      "explanation": "Подреждаме запетаите една под друга и изваждаме."
+    },
+    {
+      "id": "q-unknown-add-1",
+      "subtopic": "unknown-add-sub",
+      "type": "equation",
+      "question": "{eqText}",
+      "generate": {
+        "eqType": { "type": "choice", "values": ["unknownAddend", "unknownMinuend", "unknownSubtrahend"] },
+        "a": { "type": "decimal", "intMin": 1, "intMax": 30, "decPlaces": [1, 2] },
+        "b": { "type": "decimal", "intMin": 1, "intMax": 20, "decPlaces": [1, 2] }
+      },
+      "answerFunc": "solveAddSubEquation",
+      "explanation": "Неизвестно събираемо → изваждаме. Неизвестно умаляемо → събираме. Неизвестен умалител → изваждаме."
+    },
+    {
+      "id": "q-mult-natural-1",
+      "subtopic": "mult-natural",
+      "type": "fill-in",
+      "question": "Пресметни: {a} × {b} =",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 0, "intMax": 20, "decPlaces": [1, 2] },
+        "b": { "type": "integer", "min": 2, "max": 9 }
+      },
+      "answerFunc": "multiplyDecimals",
+      "explanation": "Умножаваме без запетая, после поставяме запетаята."
+    },
+    {
+      "id": "q-mult-decimal-1",
+      "subtopic": "mult-decimal",
+      "type": "fill-in",
+      "question": "Пресметни: {a} × {b} =",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 0, "intMax": 10, "decPlaces": [1, 2] },
+        "b": { "type": "decimal", "intMin": 0, "intMax": 5, "decPlaces": [1] }
+      },
+      "answerFunc": "multiplyDecimals",
+      "explanation": "Събираме цифрите след запетаята на двата множителя."
+    },
+    {
+      "id": "q-mult-props-1",
+      "subtopic": "mult-properties",
+      "type": "multiple-choice",
+      "question": "Кой израз е равен на {a} × {b} × {c}?",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 1, "intMax": 10, "decPlaces": [1] },
+        "b": { "type": "integer", "min": 2, "max": 9 },
+        "c": { "type": "integer", "min": 2, "max": 9 }
+      },
+      "optionsFunc": "multProperties",
+      "explanation": "Разместителното и съдружителното свойство на умножението."
+    },
+    {
+      "id": "q-div-natural-1",
+      "subtopic": "div-natural",
+      "type": "fill-in",
+      "question": "Пресметни: {a} ÷ {b} =",
+      "generate": {
+        "a": { "type": "decimalDivisible", "divisorKey": "b", "intMin": 1, "intMax": 50, "decPlaces": [1, 2] },
+        "b": { "type": "integer", "min": 2, "max": 9 }
+      },
+      "answerFunc": "divideDecimals",
+      "explanation": "Делим с естественото число, като поставяме запетаята, когато стигнем до дробната част."
+    },
+    {
+      "id": "q-mult-div-10-1",
+      "subtopic": "mult-div-10-100",
+      "type": "fill-in",
+      "question": "Пресметни: {a} {op} {factor} =",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 0, "intMax": 500, "decPlaces": [1, 2, 3] },
+        "op": { "type": "choice", "values": ["×", "÷"] },
+        "factor": { "type": "choice", "values": [10, 100, 1000] }
+      },
+      "answerFunc": "multDiv10",
+      "explanation": "При умножение запетаята се мести надясно, при деление — наляво."
+    },
+    {
+      "id": "q-div-decimal-1",
+      "subtopic": "div-decimal",
+      "type": "fill-in",
+      "question": "Пресметни: {a} ÷ {b} =",
+      "generate": {
+        "a": { "type": "decimalDivisibleByDecimal", "divisorKey": "b", "intMin": 1, "intMax": 30 },
+        "b": { "type": "decimal", "intMin": 0, "intMax": 5, "decPlaces": [1] }
+      },
+      "answerFunc": "divideDecimals",
+      "explanation": "Умножаваме и делимото, и делителя с 10/100, за да направим делителя цяло число."
+    },
+    {
+      "id": "q-distributive-1",
+      "subtopic": "distributive",
+      "type": "multiple-choice",
+      "question": "Кой израз е равен на {a} × ({b} + {c})?",
+      "generate": {
+        "a": { "type": "decimal", "intMin": 1, "intMax": 10, "decPlaces": [1] },
+        "b": { "type": "integer", "min": 10, "max": 100 },
+        "c": { "type": "integer", "min": 1, "max": 10 }
+      },
+      "optionsFunc": "distributiveProperty",
+      "explanation": "Разпределително свойство: a × (b + c) = a × b + a × c."
+    },
+    {
+      "id": "q-unknown-mult-1",
+      "subtopic": "unknown-mult-div",
+      "type": "equation",
+      "question": "{eqText}",
+      "generate": {
+        "eqType": { "type": "choice", "values": ["unknownMultiplier", "unknownDividend", "unknownDivisor"] },
+        "a": { "type": "decimal", "intMin": 1, "intMax": 20, "decPlaces": [1, 2] },
+        "b": { "type": "integer", "min": 2, "max": 9 }
+      },
+      "answerFunc": "solveMultDivEquation",
+      "explanation": "Неизвестен множител → делим. Неизвестно делимо → умножаваме. Неизвестен делител → делим."
+    }
+  ]
+}
