@@ -453,6 +453,7 @@ function showTask() {
     </div>
 
     <div class="tri-task animate-in">
+      <div class="grid-label">1 квадратче = ${config.cmPerSquare} cm</div>
       <div class="grid-container">
         <svg id="grid-svg" viewBox="0 0 ${SVG_SIZE} ${SVG_SIZE}" preserveAspectRatio="xMidYMid meet"></svg>
       </div>

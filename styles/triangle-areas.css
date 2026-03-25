@@ -72,6 +72,14 @@
   box-shadow: var(--shadow-card);
 }
 
+.grid-label {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
 .tri-progress {
   display: flex;
   align-items: center;
