@@ -1,4 +1,4 @@
-// ===== Triangle Area Game =====
+// ===== Triangle Areas =====
 
 // --- Constants ---
 const GRID_SIZE = 10;
@@ -399,9 +399,9 @@ function renderSolution(svg, task) {
 // ===== Screens =====
 
 function showSettingsScreen() {
-  const container = $('#game-container');
+  const container = $('#tri-container');
   container.innerHTML = `
-    <div class="game-settings animate-in">
+    <div class="tri-settings animate-in">
       <p>Намери лицето на триъгълниците, начертани в квадратна мрежа</p>
 
       <div class="settings-form">
@@ -416,7 +416,7 @@ function showSettingsScreen() {
         </div>
       </div>
 
-      <button class="btn btn-primary" id="start-btn">Започни играта</button>
+      <button class="btn btn-primary" id="start-btn">Започни</button>
     </div>
   `;
 
@@ -427,11 +427,11 @@ function showSettingsScreen() {
     if (!cm || cm < 1) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
     config.taskCount = count;
     config.cmPerSquare = cm;
-    startGame();
+    startTest();
   });
 }
 
-function startGame() {
+function startTest() {
   tasks = generateAllTasks(config.taskCount);
   currentIdx = 0;
   score = 0;
@@ -441,18 +441,18 @@ function startGame() {
 
 function showTask() {
   const task = tasks[currentIdx];
-  const container = $('#game-container');
+  const container = $('#tri-container');
 
   container.innerHTML = `
-    <div class="game-progress">
+    <div class="tri-progress">
       <span>Задача ${currentIdx + 1} / ${tasks.length}</span>
       <div class="progress-bar">
         <div class="progress-fill" style="width: ${(currentIdx / tasks.length) * 100}%"></div>
       </div>
-      <span class="game-score">${score} &#10003;</span>
+      <span class="tri-score">${score} &#10003;</span>
     </div>
 
-    <div class="game-task animate-in">
+    <div class="tri-task animate-in">
       <div class="grid-container">
         <svg id="grid-svg" viewBox="0 0 ${SVG_SIZE} ${SVG_SIZE}" preserveAspectRatio="xMidYMid meet"></svg>
       </div>
@@ -528,7 +528,7 @@ function checkAnswer(task) {
   results.push(correct);
 
   // Update score display
-  const scoreEl = document.querySelector('.game-score');
+  const scoreEl = document.querySelector('.tri-score');
   if (scoreEl) scoreEl.textContent = `${score} \u2713`;
 
   // Render solution on grid
@@ -587,7 +587,7 @@ function checkAnswer(task) {
 }
 
 function showScoreScreen() {
-  const container = $('#game-container');
+  const container = $('#tri-container');
   const total = tasks.length;
   const wrong = total - score;
   const pct = Math.round((score / total) * 100);
@@ -650,7 +650,7 @@ function showScoreScreen() {
     </div>
   `;
 
-  $('#retry-btn').addEventListener('click', startGame);
+  $('#retry-btn').addEventListener('click', startTest);
   $('#settings-btn').addEventListener('click', showSettingsScreen);
 }
 

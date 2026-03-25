@@ -1,13 +1,13 @@
-/* ===== Triangle Game ===== */
+/* ===== Triangle Areas ===== */
 
-.game-wrap {
+.tri-wrap {
   max-width: 700px;
   margin: 0 auto;
   padding-bottom: 2rem;
 }
 
 /* Settings Screen */
-.game-settings {
+.tri-settings {
   text-align: center;
   background: var(--color-white);
   border-radius: var(--radius);
@@ -15,11 +15,11 @@
   box-shadow: var(--shadow-card);
 }
 
-.game-settings h2 {
+.tri-settings h2 {
   margin-bottom: 0.5rem;
 }
 
-.game-settings > p {
+.tri-settings > p {
   color: var(--color-text-light);
   margin-bottom: 1.5rem;
 }
@@ -64,15 +64,15 @@
   border-color: var(--color-primary);
 }
 
-/* Game Task */
-.game-task {
+/* Task Card */
+.tri-task {
   background: var(--color-white);
   border-radius: var(--radius);
   padding: 1.5rem;
   box-shadow: var(--shadow-card);
 }
 
-.game-progress {
+.tri-progress {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -82,7 +82,7 @@
   font-size: 0.9rem;
 }
 
-.game-progress .progress-bar {
+.tri-progress .progress-bar {
   flex: 1;
   height: 8px;
   background: var(--color-primary-light);
@@ -90,14 +90,14 @@
   overflow: hidden;
 }
 
-.game-progress .progress-fill {
+.tri-progress .progress-fill {
   height: 100%;
   background: var(--color-primary);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
-.game-score {
+.tri-score {
   color: var(--color-success);
   font-weight: 800;
 }
@@ -212,11 +212,11 @@
 
 /* Responsive */
 @media (min-width: 600px) {
-  .game-task {
+  .tri-task {
     padding: 2rem;
   }
 
-  .game-settings {
+  .tri-settings {
     padding: 2.5rem;
   }
 }
