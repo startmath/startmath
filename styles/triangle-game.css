@@ -1,0 +1,239 @@
+/* ===== Triangle Game ===== */
+
+.game-wrap {
+  max-width: 700px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+/* Settings Screen */
+.game-settings {
+  text-align: center;
+  background: var(--color-white);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow-card);
+}
+
+.game-settings h2 {
+  margin-bottom: 0.5rem;
+}
+
+.game-settings > p {
+  color: var(--color-text-light);
+  margin-bottom: 1.5rem;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 360px;
+  margin: 0 auto 1.5rem;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.setting-group label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.setting-group select {
+  padding: 0.65rem 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--transition);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 2.5rem;
+}
+
+.setting-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Game Task */
+.game-task {
+  background: var(--color-white);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.game-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-light);
+  font-size: 0.9rem;
+}
+
+.game-progress .progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-primary-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.game-progress .progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.game-score {
+  color: var(--color-success);
+  font-weight: 800;
+}
+
+/* Grid Container */
+.grid-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.grid-container svg {
+  width: 100%;
+  max-width: 470px;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+/* Answer Section */
+.answer-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.answer-prompt {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.answer-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.answer-input-group input {
+  width: 100px;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: 'Nunito', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+  transition: border-color var(--transition);
+  background: var(--color-white);
+}
+
+.answer-input-group input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.answer-input-group input.correct {
+  border-color: var(--color-success);
+  background: var(--color-success-light);
+}
+
+.answer-input-group input.incorrect {
+  border-color: var(--color-error);
+  background: var(--color-error-light);
+}
+
+.answer-input-group .unit-label {
+  font-weight: 700;
+  color: var(--color-text-light);
+  font-size: 1rem;
+}
+
+/* Solution Area */
+#solution-area {
+  margin-top: 1rem;
+}
+
+.formula-solution {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.formula-type {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.formula-display {
+  background: var(--color-accent-light);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+}
+
+.formula-display .katex {
+  font-size: 1.2em;
+}
+
+#next-area {
+  text-align: center;
+  margin-top: 1.25rem;
+}
+
+/* Responsive */
+@media (min-width: 600px) {
+  .game-task {
+    padding: 2rem;
+  }
+
+  .game-settings {
+    padding: 2.5rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .answer-input-group input {
+    min-height: 52px;
+    width: 120px;
+    font-size: 1.2rem;
+  }
+
+  .setting-group select {
+    min-height: 52px;
+  }
+}

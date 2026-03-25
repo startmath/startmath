@@ -98,7 +98,11 @@ async function initGradePage() {
 
       if (topic.active) {
         card.addEventListener('click', () => {
-          window.location.href = `topic.html?grade=${gradeId}&topic=${topic.id}`;
+          if (topic.page) {
+            window.location.href = topic.page;
+          } else {
+            window.location.href = `topic.html?grade=${gradeId}&topic=${topic.id}`;
+          }
         });
       }
 

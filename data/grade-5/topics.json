@@ -9,6 +9,15 @@
       "icon": "🔢",
       "subtopicCount": 18,
       "active": true
+    },
+    {
+      "id": "litsa-na-triagalnitsi",
+      "title": "Лица на триъгълници",
+      "description": "Намиране на лица на триъгълници в квадратна мрежа",
+      "icon": "📐",
+      "subtopicCount": 3,
+      "active": true,
+      "page": "triangle-game.html"
     }
   ]
 }
