@@ -44,7 +44,6 @@ function shuffle(arr) {
 }
 
 function ensureOneEven(base, height, minB, maxB, minH, maxH) {
-  if (config.cmPerSquare % 2 === 0) return [base, height];
   if (base % 2 === 0 || height % 2 === 0) return [base, height];
   // Make one of them even
   if (Math.random() < 0.5) {
@@ -271,34 +270,6 @@ function renderGrid(svg) {
     }
   }
 
-  // Dimension marker on top-right square
-  const dmX = px(GRID_SIZE - 1);
-  const dmX2 = px(GRID_SIZE);
-  const dmY = py(GRID_SIZE) + CELL_PX / 2;
-  const tick = 5;
-
-  // Horizontal line with ticks
-  svg.appendChild(svgEl('line', {
-    x1: dmX, y1: dmY, x2: dmX2, y2: dmY,
-    stroke: '#888', 'stroke-width': 1.5
-  }));
-  svg.appendChild(svgEl('line', {
-    x1: dmX, y1: dmY - tick, x2: dmX, y2: dmY + tick,
-    stroke: '#888', 'stroke-width': 1.5
-  }));
-  svg.appendChild(svgEl('line', {
-    x1: dmX2, y1: dmY - tick, x2: dmX2, y2: dmY + tick,
-    stroke: '#888', 'stroke-width': 1.5
-  }));
-
-  // Label
-  const dmLabel = svgEl('text', {
-    x: (dmX + dmX2) / 2, y: dmY - 8,
-    'text-anchor': 'middle', 'font-size': 11, 'font-weight': 'bold',
-    fill: '#666', 'font-family': 'Nunito, sans-serif'
-  });
-  dmLabel.textContent = `${cm} cm`;
-  svg.appendChild(dmLabel);
 }
 
 function renderTriangle(svg, task) {
@@ -345,6 +316,63 @@ function renderTriangle(svg, task) {
     label.textContent = labels[i];
     svg.appendChild(label);
   });
+
+  // Dimension marker — pick the corner farthest from the triangle
+  renderDimensionMarker(svg, task);
+}
+
+function renderDimensionMarker(svg, task) {
+  const cm = config.cmPerSquare;
+  const [A, B, C] = task.vertices;
+  const triCX = (A.x + B.x + C.x) / 3;
+  const triCY = (A.y + B.y + C.y) / 3;
+
+  // Four corners: (0,0), (9,0), (0,9), (9,9) — top-left of each 1x1 square
+  const corners = [
+    { gx: 0, gy: 0 },
+    { gx: GRID_SIZE - 1, gy: 0 },
+    { gx: 0, gy: GRID_SIZE - 1 },
+    { gx: GRID_SIZE - 1, gy: GRID_SIZE - 1 }
+  ];
+
+  // Pick corner with greatest distance from triangle center
+  let best = corners[0];
+  let bestDist = 0;
+  for (const c of corners) {
+    const cx = c.gx + 0.5;
+    const cy = c.gy + 0.5;
+    const d = (cx - triCX) ** 2 + (cy - triCY) ** 2;
+    if (d > bestDist) { bestDist = d; best = c; }
+  }
+
+  const dmX = px(best.gx);
+  const dmX2 = px(best.gx + 1);
+  const dmY = (py(best.gy) + py(best.gy + 1)) / 2;
+  const tick = 5;
+
+  // Horizontal line with ticks
+  svg.appendChild(svgEl('line', {
+    x1: dmX, y1: dmY, x2: dmX2, y2: dmY,
+    stroke: '#888', 'stroke-width': 1.5
+  }));
+  svg.appendChild(svgEl('line', {
+    x1: dmX, y1: dmY - tick, x2: dmX, y2: dmY + tick,
+    stroke: '#888', 'stroke-width': 1.5
+  }));
+  svg.appendChild(svgEl('line', {
+    x1: dmX2, y1: dmY - tick, x2: dmX2, y2: dmY + tick,
+    stroke: '#888', 'stroke-width': 1.5
+  }));
+
+  // Label
+  const cmText = formatBG(cm);
+  const dmLabel = svgEl('text', {
+    x: (dmX + dmX2) / 2, y: dmY - 8,
+    'text-anchor': 'middle', 'font-size': 11, 'font-weight': 'bold',
+    fill: '#666', 'font-family': 'Nunito, sans-serif'
+  });
+  dmLabel.textContent = `${cmText} cm`;
+  svg.appendChild(dmLabel);
 }
 
 function renderSolution(svg, task) {
@@ -440,7 +468,7 @@ function showSettingsScreen() {
 
         <div class="setting-group">
           <label for="cm-per-square">Страна на квадратче (cm):</label>
-          <input type="number" id="cm-per-square" min="1" max="20" value="1" inputmode="numeric">
+          <input type="number" id="cm-per-square" min="0.1" max="20" step="any" value="1" inputmode="decimal">
         </div>
       </div>
 
@@ -450,9 +478,9 @@ function showSettingsScreen() {
 
   $('#start-btn').addEventListener('click', () => {
     const count = parseInt($('#task-count').value);
-    const cm = parseInt($('#cm-per-square').value);
+    const cm = parseFloat($('#cm-per-square').value.replace(',', '.'));
     if (!count || count < 1) { $('#task-count').style.borderColor = 'var(--color-error)'; return; }
-    if (!cm || cm < 1) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
+    if (!cm || cm <= 0) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
     config.taskCount = count;
     config.cmPerSquare = cm;
     startTest();
@@ -539,7 +567,7 @@ function checkAnswer(task) {
   const heightCm = task.height * cm;
   const correctArea = (baseCm * heightCm) / 2;
 
-  const correct = Math.abs(userAnswer - correctArea) < 0.01;
+  const correct = Math.abs(userAnswer - correctArea) < 0.05;
 
   // Disable input
   input.disabled = true;
