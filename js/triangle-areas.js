@@ -316,11 +316,10 @@ function renderTriangle(svg, task) {
   });
 
   // Dimension marker — pick the corner farthest from the triangle
-  renderDimensionMarker(svg, task);
+  renderDimensionMarker(svg, task, config.cmPerSquare);
 }
 
-function renderDimensionMarker(svg, task) {
-  const cm = config.cmPerSquare;
+function renderDimensionMarker(svg, task, cm) {
   const [A, B, C] = task.vertices;
   const triCX = (A.x + B.x + C.x) / 3;
   const triCY = (A.y + B.y + C.y) / 3;
