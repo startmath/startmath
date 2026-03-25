@@ -271,6 +271,34 @@ function renderGrid(svg) {
     }
   }
 
+  // Dimension marker on top-right square
+  const dmX = px(GRID_SIZE - 1);
+  const dmX2 = px(GRID_SIZE);
+  const dmY = py(GRID_SIZE) + CELL_PX / 2;
+  const tick = 5;
+
+  // Horizontal line with ticks
+  svg.appendChild(svgEl('line', {
+    x1: dmX, y1: dmY, x2: dmX2, y2: dmY,
+    stroke: '#888', 'stroke-width': 1.5
+  }));
+  svg.appendChild(svgEl('line', {
+    x1: dmX, y1: dmY - tick, x2: dmX, y2: dmY + tick,
+    stroke: '#888', 'stroke-width': 1.5
+  }));
+  svg.appendChild(svgEl('line', {
+    x1: dmX2, y1: dmY - tick, x2: dmX2, y2: dmY + tick,
+    stroke: '#888', 'stroke-width': 1.5
+  }));
+
+  // Label
+  const dmLabel = svgEl('text', {
+    x: (dmX + dmX2) / 2, y: dmY - 8,
+    'text-anchor': 'middle', 'font-size': 11, 'font-weight': 'bold',
+    fill: '#666', 'font-family': 'Nunito, sans-serif'
+  });
+  dmLabel.textContent = `${cm} cm`;
+  svg.appendChild(dmLabel);
 }
 
 function renderTriangle(svg, task) {
@@ -453,7 +481,6 @@ function showTask() {
     </div>
 
     <div class="tri-task animate-in">
-      <div class="grid-label">1 квадратче = ${config.cmPerSquare} cm</div>
       <div class="grid-container">
         <svg id="grid-svg" viewBox="0 0 ${SVG_SIZE} ${SVG_SIZE}" preserveAspectRatio="xMidYMid meet"></svg>
       </div>
