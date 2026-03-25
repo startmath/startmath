@@ -271,28 +271,6 @@ function renderGrid(svg) {
     }
   }
 
-  // Axis labels (cm values)
-  for (let i = 0; i <= GRID_SIZE; i++) {
-    // X-axis (bottom)
-    const lx = svgEl('text', {
-      x: px(i), y: py(0) + 18,
-      'text-anchor': 'middle', 'font-size': 10, fill: '#999',
-      'font-family': 'Nunito, sans-serif', 'font-weight': 600
-    });
-    lx.textContent = i * cm;
-    svg.appendChild(lx);
-
-    // Y-axis (left)
-    if (i > 0) {
-      const ly = svgEl('text', {
-        x: px(0) - 8, y: py(i) + 4,
-        'text-anchor': 'end', 'font-size': 10, fill: '#999',
-        'font-family': 'Nunito, sans-serif', 'font-weight': 600
-      });
-      ly.textContent = i * cm;
-      svg.appendChild(ly);
-    }
-  }
 }
 
 function renderTriangle(svg, task) {
@@ -424,32 +402,17 @@ function showSettingsScreen() {
   const container = $('#game-container');
   container.innerHTML = `
     <div class="game-settings animate-in">
-      <h2>Лица на триъгълници</h2>
       <p>Намери лицето на триъгълниците, начертани в квадратна мрежа</p>
 
       <div class="settings-form">
         <div class="setting-group">
           <label for="task-count">Брой задачи:</label>
-          <select id="task-count">
-            <option value="3">3 задачи (1 от всеки вид)</option>
-            <option value="6" selected>6 задачи (2 от всеки вид)</option>
-            <option value="9">9 задачи (3 от всеки вид)</option>
-            <option value="12">12 задачи (4 от всеки вид)</option>
-            <option value="15">15 задачи (5 от всеки вид)</option>
-            <option value="18">18 задачи (6 от всеки вид)</option>
-            <option value="24">24 задачи (8 от всеки вид)</option>
-          </select>
+          <input type="number" id="task-count" min="1" max="99" value="6" inputmode="numeric">
         </div>
 
         <div class="setting-group">
-          <label for="cm-per-square">Страна на квадратче:</label>
-          <select id="cm-per-square">
-            <option value="1" selected>1 cm</option>
-            <option value="2">2 cm</option>
-            <option value="3">3 cm</option>
-            <option value="4">4 cm</option>
-            <option value="5">5 cm</option>
-          </select>
+          <label for="cm-per-square">Страна на квадратче (cm):</label>
+          <input type="number" id="cm-per-square" min="1" max="20" value="1" inputmode="numeric">
         </div>
       </div>
 
@@ -458,8 +421,12 @@ function showSettingsScreen() {
   `;
 
   $('#start-btn').addEventListener('click', () => {
-    config.taskCount = parseInt($('#task-count').value);
-    config.cmPerSquare = parseInt($('#cm-per-square').value);
+    const count = parseInt($('#task-count').value);
+    const cm = parseInt($('#cm-per-square').value);
+    if (!count || count < 1) { $('#task-count').style.borderColor = 'var(--color-error)'; return; }
+    if (!cm || cm < 1) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
+    config.taskCount = count;
+    config.cmPerSquare = cm;
     startGame();
   });
 }

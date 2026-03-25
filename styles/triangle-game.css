@@ -45,26 +45,21 @@
   color: var(--color-text);
 }
 
-.setting-group select {
+.setting-group input[type="number"] {
   padding: 0.65rem 1rem;
   border: 2px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-family: 'Nunito', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
   background: var(--color-white);
   color: var(--color-text);
-  cursor: pointer;
   transition: border-color var(--transition);
-  -webkit-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 2.5rem;
+  text-align: center;
+  width: 100%;
 }
 
-.setting-group select:focus {
+.setting-group input[type="number"]:focus {
   outline: none;
   border-color: var(--color-primary);
 }
@@ -233,7 +228,7 @@
     font-size: 1.2rem;
   }
 
-  .setting-group select {
+  .setting-group input[type="number"] {
     min-height: 52px;
   }
 }
