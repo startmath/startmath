@@ -45,7 +45,7 @@
   color: var(--color-text);
 }
 
-.setting-group input[type="number"] {
+.setting-group input {
   padding: 0.65rem 1rem;
   border: 2px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -59,7 +59,7 @@
   width: 100%;
 }
 
-.setting-group input[type="number"]:focus {
+.setting-group input:focus {
   outline: none;
   border-color: var(--color-primary);
 }
@@ -236,7 +236,7 @@
     font-size: 1.2rem;
   }
 
-  .setting-group input[type="number"] {
+  .setting-group input {
     min-height: 52px;
   }
 }

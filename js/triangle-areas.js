@@ -234,8 +234,6 @@ function generateAllTasks(count) {
 // ===== SVG Rendering =====
 
 function renderGrid(svg) {
-  const cm = config.cmPerSquare;
-
   // Background
   svg.appendChild(svgEl('rect', {
     x: 0, y: 0, width: SVG_SIZE, height: SVG_SIZE,
@@ -468,7 +466,7 @@ function showSettingsScreen() {
 
         <div class="setting-group">
           <label for="cm-per-square">Страна на квадратче (cm):</label>
-          <input type="number" id="cm-per-square" min="0.1" max="20" step="any" value="1" inputmode="decimal">
+          <input type="text" id="cm-per-square" value="1" inputmode="decimal" placeholder="напр. 1,5">
         </div>
       </div>
 
