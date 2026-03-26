@@ -215,6 +215,18 @@ function generateObtuseTriangle() {
 
 // ===== Task Generation =====
 
+function rotateTriangle(tri) {
+  const swap = (p) => ({ x: p.y, y: p.x });
+  return {
+    ...tri,
+    vertices: tri.vertices.map(swap),
+    baseStart: swap(tri.baseStart),
+    baseEnd: swap(tri.baseEnd),
+    apex: swap(tri.apex),
+    heightFoot: swap(tri.heightFoot)
+  };
+}
+
 function generateAllTasks(count) {
   const perType = Math.floor(count / 3);
   const remainder = count % 3;
@@ -225,7 +237,8 @@ function generateAllTasks(count) {
   for (let t = 0; t < 3; t++) {
     const n = perType + (t < remainder ? 1 : 0);
     for (let i = 0; i < n; i++) {
-      allTasks.push(generators[types[t]]());
+      const task = generators[types[t]]();
+      allTasks.push(Math.random() < 0.5 ? rotateTriangle(task) : task);
     }
   }
   return shuffle(allTasks);
@@ -377,6 +390,7 @@ function renderSolution(svg, task) {
   const { baseStart: A, baseEnd: B, apex: C, heightFoot: H } = task;
   const baseCm = task.base * cm;
   const heightCm = task.height * cm;
+  const horiz = A.y === B.y; // horizontal base vs vertical base
 
   // --- Base line in red ---
   svg.appendChild(svgEl('line', {
@@ -385,26 +399,31 @@ function renderSolution(svg, task) {
     stroke: '#EF5350', 'stroke-width': 3.5, 'stroke-linecap': 'round'
   }));
 
-  // Base label below
-  const baseMidPx = (px(A.x) + px(B.x)) / 2;
-  const baseLabelY = py(A.y) + 14;
+  // Base label
   const bl = svgEl('text', {
-    x: baseMidPx, y: baseLabelY,
-    'text-anchor': 'middle', 'font-size': 13, 'font-weight': 'bold',
+    'font-size': 13, 'font-weight': 'bold',
     fill: '#EF5350', 'font-family': 'Nunito, sans-serif'
   });
-  bl.textContent = `a = ${baseCm} cm`;
+  bl.textContent = `a = ${formatBG(baseCm)} cm`;
+  if (horiz) {
+    bl.setAttribute('x', (px(A.x) + px(B.x)) / 2);
+    bl.setAttribute('y', py(A.y) + 14);
+    bl.setAttribute('text-anchor', 'middle');
+  } else {
+    const midY = (py(A.y) + py(B.y)) / 2;
+    const labelX = px(A.x) < px(5) ? px(A.x) - 10 : px(A.x) + 10;
+    bl.setAttribute('x', labelX);
+    bl.setAttribute('y', midY + 4);
+    bl.setAttribute('text-anchor', px(A.x) < px(5) ? 'end' : 'start');
+  }
   svg.appendChild(bl);
 
   // --- For obtuse: extend base line to foot (dashed) ---
   if (task.type === 'obtuse') {
-    const extFrom = H.x < A.x ? H : B;
-    const extTo = H.x < A.x ? A : B;
-    // Draw from the nearer endpoint to H
-    const nearX = H.x < A.x ? A.x : B.x;
     svg.appendChild(svgEl('line', {
       x1: px(H.x), y1: py(H.y),
-      x2: px(nearX), y2: py(A.y),
+      x2: horiz ? px(H.x < A.x ? A.x : B.x) : px(A.x),
+      y2: horiz ? py(A.y) : py(H.y < Math.min(A.y, B.y) ? Math.min(A.y, B.y) : Math.max(A.y, B.y)),
       stroke: '#EF5350', 'stroke-width': 1.5, 'stroke-dasharray': '6,4',
       'stroke-linecap': 'round'
     }));
@@ -424,29 +443,48 @@ function renderSolution(svg, task) {
     fill: '#EF5350'
   }));
 
-  // Height label to the side
-  const hMidPy = (py(C.y) + py(H.y)) / 2;
-  const hLabelX = px(C.x) < px(5) ? px(C.x) + 12 : px(C.x) - 12;
-  const hAnchor = px(C.x) < px(5) ? 'start' : 'end';
+  // Height label
   const hl = svgEl('text', {
-    x: hLabelX, y: hMidPy + 4,
-    'text-anchor': hAnchor, 'font-size': 13, 'font-weight': 'bold',
+    'font-size': 13, 'font-weight': 'bold',
     fill: '#EF5350', 'font-family': 'Nunito, sans-serif'
   });
-  hl.textContent = `h = ${heightCm} cm`;
+  hl.textContent = `h = ${formatBG(heightCm)} cm`;
+  if (horiz) {
+    // Height is vertical — label to the side
+    const hMidPy = (py(C.y) + py(H.y)) / 2;
+    const hLabelX = px(C.x) < px(5) ? px(C.x) + 12 : px(C.x) - 12;
+    hl.setAttribute('x', hLabelX);
+    hl.setAttribute('y', hMidPy + 4);
+    hl.setAttribute('text-anchor', px(C.x) < px(5) ? 'start' : 'end');
+  } else {
+    // Height is horizontal — label above/below
+    const hMidPx = (px(C.x) + px(H.x)) / 2;
+    const hLabelY = py(C.y) < py(5) ? py(C.y) - 8 : py(C.y) + 16;
+    hl.setAttribute('x', hMidPx);
+    hl.setAttribute('y', hLabelY);
+    hl.setAttribute('text-anchor', 'middle');
+  }
   svg.appendChild(hl);
 
   // --- Right-angle marker at foot ---
   const mSize = 8;
-  // Marker goes in the direction away from the apex along the base line
-  const mDirX = H.x <= A.x ? 1 : (H.x >= B.x ? -1 : 1);
   const mx = px(H.x);
   const my = py(H.y);
-  // Small square: from foot, go along base, then go toward apex
-  svg.appendChild(svgEl('path', {
-    d: `M${mx},${my - mSize} L${mx + mSize * mDirX},${my - mSize} L${mx + mSize * mDirX},${my}`,
-    fill: 'none', stroke: '#EF5350', 'stroke-width': 1.5
-  }));
+  if (horiz) {
+    const mDirX = H.x <= A.x ? 1 : (H.x >= B.x ? -1 : 1);
+    svg.appendChild(svgEl('path', {
+      d: `M${mx},${my - mSize} L${mx + mSize * mDirX},${my - mSize} L${mx + mSize * mDirX},${my}`,
+      fill: 'none', stroke: '#EF5350', 'stroke-width': 1.5
+    }));
+  } else {
+    const mDirY = H.y <= Math.min(A.y, B.y) ? 1 : -1;
+    const mdy = -mSize * mDirY; // SVG y is flipped via py()
+    const mdx = C.x > H.x ? mSize : -mSize;
+    svg.appendChild(svgEl('path', {
+      d: `M${mx + mdx},${my} L${mx + mdx},${my + mdy} L${mx},${my + mdy}`,
+      fill: 'none', stroke: '#EF5350', 'stroke-width': 1.5
+    }));
+  }
 }
 
 // ===== Screens =====
