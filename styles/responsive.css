@@ -6,6 +6,23 @@
   display: none !important;
 }
 
+.slide-card {
+  font-size: 0.92rem;
+}
+
+.slide-card .slide-title {
+  font-size: 1rem;
+}
+
+.summary-table {
+  font-size: 0.82rem;
+}
+
+.formula-box {
+  font-size: 1rem;
+  overflow-x: auto;
+}
+
 /* ===== Tablet (600px+) ===== */
 @media (min-width: 600px) {
   .cards-grid {
@@ -19,6 +36,18 @@
   .swiper-button-next,
   .swiper-button-prev {
     display: flex !important;
+  }
+
+  .swipe-hint {
+    display: none;
+  }
+
+  .slide-card {
+    font-size: 1rem;
+  }
+
+  .slide-card .slide-title {
+    font-size: 1.1rem;
   }
 
   .question-card {

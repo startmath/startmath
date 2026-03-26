@@ -189,7 +189,7 @@ export const answerFunctions = {
 
   multDiv10(values) {
     const { a, op, factor } = values;
-    if (op === '×') return cleanNum(a * factor);
+    if (op === '·') return cleanNum(a * factor);
     return cleanNum(a / factor);
   },
 
@@ -321,8 +321,8 @@ export const optionsFunctions = {
     const correct = `(${bF} + ${cF}) + ${aF}`;
 
     const distractors = [
-      `${aF} × ${bF} + ${cF}`,
-      `${aF} + ${bF} × ${cF}`,
+      `${aF} · ${bF} + ${cF}`,
+      `${aF} + ${bF} · ${cF}`,
       `(${aF} − ${bF}) + ${cF}`
     ];
 
@@ -333,12 +333,12 @@ export const optionsFunctions = {
     const { a, b, c } = values;
     const aF = displayNumber(a);
 
-    const correct = `(${aF} × ${c}) × ${b}`;
+    const correct = `(${aF} · ${c}) · ${b}`;
 
     const distractors = [
-      `${aF} + ${b} × ${c}`,
-      `${aF} × ${b} + ${c}`,
-      `(${aF} + ${b}) × ${c}`
+      `${aF} + ${b} · ${c}`,
+      `${aF} · ${b} + ${c}`,
+      `(${aF} + ${b}) · ${c}`
     ];
 
     return { correct, options: shuffle([correct, ...distractors]) };
@@ -348,12 +348,12 @@ export const optionsFunctions = {
     const { a, b, c } = values;
     const aF = displayNumber(a);
 
-    const correct = `${aF} × ${b} + ${aF} × ${c}`;
+    const correct = `${aF} · ${b} + ${aF} · ${c}`;
 
     const distractors = [
-      `${aF} × ${b} × ${c}`,
-      `${aF} + ${b} × ${c}`,
-      `(${aF} + ${b}) × (${aF} + ${c})`
+      `${aF} · ${b} · ${c}`,
+      `${aF} + ${b} · ${c}`,
+      `(${aF} + ${b}) · (${aF} + ${c})`
     ];
 
     return { correct, options: shuffle([correct, ...distractors]) };
@@ -383,7 +383,7 @@ export function buildEquationText(eqType, values) {
     }
     case 'unknownMultiplier': {
       const product = cleanNum(safeCalc(a, b, '*'));
-      return { text: `x × ${b} = ${displayNumber(product)}`, answer: a };
+      return { text: `x · ${b} = ${displayNumber(product)}`, answer: a };
     }
     case 'unknownDividend': {
       const quotient = a;

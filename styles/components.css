@@ -162,10 +162,11 @@
 .slide-card {
   background: var(--color-bg);
   border-radius: var(--radius);
-  padding: 1.5rem;
-  min-height: 280px;
+  padding: 1.25rem;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
+  overflow-x: auto;
 }
 
 .slide-card .slide-header {
@@ -199,6 +200,12 @@
 
 .slide-card .slide-body {
   flex: 1;
+}
+
+.slide-card .slide-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
 }
 
 .slide-card .slide-body p {
@@ -718,6 +725,35 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ===== Swipe Hint (mobile) ===== */
+.swipe-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-light);
+  font-size: 0.85rem;
+  font-weight: 600;
+  animation: swipeHintPulse 2s ease-in-out 2;
+}
+
+.swipe-hint .swipe-arrow {
+  font-size: 1.2rem;
+  animation: swipeHintSlide 1.5s ease-in-out 3;
+}
+
+@keyframes swipeHintSlide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(8px); }
+}
+
+@keyframes swipeHintPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* ===== Swiper Overrides ===== */
