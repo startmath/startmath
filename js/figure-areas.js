@@ -215,15 +215,26 @@ function generateObtuseTriangle() {
 
 // ===== Task Generation =====
 
-function rotateTriangle(tri) {
-  const swap = (p) => ({ x: p.y, y: p.x });
+function transformTriangle(tri) {
+  const G = GRID_SIZE;
+  const transforms = [
+    (p) => p,                                  // 0°
+    (p) => ({ x: p.y, y: p.x }),               // 90°
+    (p) => ({ x: G - p.x, y: G - p.y }),       // 180°
+    (p) => ({ x: G - p.y, y: G - p.x }),       // 270°
+    (p) => ({ x: G - p.x, y: p.y }),           // mirror horizontal
+    (p) => ({ x: p.x, y: G - p.y }),           // mirror vertical
+    (p) => ({ x: p.y, y: G - p.x }),           // 90° + mirror
+    (p) => ({ x: G - p.y, y: p.x }),           // 270° + mirror
+  ];
+  const fn = transforms[Math.floor(Math.random() * transforms.length)];
   return {
     ...tri,
-    vertices: tri.vertices.map(swap),
-    baseStart: swap(tri.baseStart),
-    baseEnd: swap(tri.baseEnd),
-    apex: swap(tri.apex),
-    heightFoot: swap(tri.heightFoot)
+    vertices: tri.vertices.map(fn),
+    baseStart: fn(tri.baseStart),
+    baseEnd: fn(tri.baseEnd),
+    apex: fn(tri.apex),
+    heightFoot: fn(tri.heightFoot)
   };
 }
 
@@ -237,8 +248,7 @@ function generateAllTasks(count) {
   for (let t = 0; t < 3; t++) {
     const n = perType + (t < remainder ? 1 : 0);
     for (let i = 0; i < n; i++) {
-      const task = generators[types[t]]();
-      allTasks.push(Math.random() < 0.5 ? rotateTriangle(task) : task);
+      allTasks.push(transformTriangle(generators[types[t]]()));
     }
   }
   return shuffle(allTasks);
