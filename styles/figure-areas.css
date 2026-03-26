@@ -205,12 +205,13 @@
   background: var(--color-accent-light);
   border: 2px solid var(--color-accent);
   border-radius: var(--radius-sm);
-  padding: 0.75rem 1rem;
-  font-size: 1.1rem;
+  padding: 0.75rem 0.75rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .formula-display .katex {
-  font-size: 1.2em;
+  font-size: 0.95em;
 }
 
 #next-area {
