@@ -389,7 +389,7 @@ export function buildEquationText(eqType, values) {
     }
     case 'unknownMultiplier': {
       const product = cleanNum(safeCalc(a, b, '*'));
-      return { text: `$x \\cdot ${b} = ${katexNum(product)}$`, answer: a };
+      return { text: `$x \\text{.}\\; ${b} = ${katexNum(product)}$`, answer: a };
     }
     case 'unknownDividend': {
       const quotient = a;
