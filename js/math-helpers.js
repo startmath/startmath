@@ -66,7 +66,20 @@ export function generateValues(generateSpec) {
   const values = {};
   const keys = Object.keys(generateSpec);
 
+  // Split into independent and dependent keys (those that reference other values)
+  const independent = [];
+  const dependent = [];
   for (const key of keys) {
+    const spec = generateSpec[key];
+    if (spec.base || spec.divisorKey) {
+      dependent.push(key);
+    } else {
+      independent.push(key);
+    }
+  }
+
+  // Generate independent values first, then dependent ones
+  for (const key of [...independent, ...dependent]) {
     const spec = generateSpec[key];
 
     switch (spec.type) {

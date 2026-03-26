@@ -86,6 +86,7 @@ export function parseBGInput(input) {
 // ===== Number display for quiz =====
 
 export function displayNumber(num) {
+  if (num === undefined || num === null || isNaN(num)) return '0';
   // Round to avoid floating point issues, then format
   const rounded = Math.round(num * 10000) / 10000;
   return formatBG(rounded);
