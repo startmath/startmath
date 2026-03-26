@@ -222,7 +222,7 @@
       "id": "q-distributive-1",
       "subtopic": "distributive",
       "type": "multiple-choice",
-      "question": "Кой израз е равен на {a} .({b} + {c})?",
+      "question": "Кой израз е равен на {a} . ({b} + {c})?",
       "generate": {
         "a": { "type": "decimal", "intMin": 1, "intMax": 10, "decPlaces": [1] },
         "b": { "type": "integer", "min": 10, "max": 100 },

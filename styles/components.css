@@ -180,7 +180,9 @@
   min-height: 200px;
   display: flex;
   flex-direction: column;
-  overflow-x: auto;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .slide-card .slide-header {
@@ -220,6 +222,12 @@
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0.25rem 0;
+  font-size: 0.9em;
+}
+
+.slide-card .slide-body .katex {
+  white-space: normal;
+  word-wrap: break-word;
 }
 
 .slide-card .slide-body p {
