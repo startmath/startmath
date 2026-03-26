@@ -34,7 +34,7 @@ async function initLandingPage() {
         <div class="card-icon">${grade.icon}</div>
         <h3>${grade.title}</h3>
         <p>${grade.description}</p>
-        ${grade.active ? '<span class="card-play">&#9654;</span>' : '<span class="badge coming-soon">Очаквайте скоро</span>'}
+        ${grade.active ? '' : '<span class="badge coming-soon">Очаквайте скоро</span>'}
       `;
 
       if (grade.active) {
