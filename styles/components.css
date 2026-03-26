@@ -180,9 +180,7 @@
   min-height: 200px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .slide-card .slide-header {
@@ -219,19 +217,14 @@
 }
 
 .slide-card .slide-body .katex-display {
-  overflow: hidden;
   padding: 0.25rem 0;
-  font-size: 0.85em;
-}
-
-.slide-card .slide-body .katex-display > .katex {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 .slide-card .slide-body .katex {
   white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .slide-card .slide-body p {
