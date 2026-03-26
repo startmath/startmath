@@ -63,7 +63,7 @@ function buildQuestion(template) {
     // Build equation text
     const eqType = values.eqType;
     const eq = buildEquationText(eqType, values);
-    questionText = `Намери x:<br><span style="font-size:1.25em">${eq.text}</span>`;
+    questionText = `Намери $x$:<br>${eq.text}`;
     answer = eq.answer;
     type = 'fill-in'; // equations use fill-in input
   } else if (type === 'fill-in') {

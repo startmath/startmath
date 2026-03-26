@@ -148,7 +148,7 @@
       "id": "q-mult-natural-1",
       "subtopic": "mult-natural",
       "type": "fill-in",
-      "question": "Пресметни: {a} · {b} =",
+      "question": "Пресметни: {a} . {b} =",
       "generate": {
         "a": { "type": "decimal", "intMin": 0, "intMax": 20, "decPlaces": [1, 2] },
         "b": { "type": "integer", "min": 2, "max": 9 }
@@ -160,7 +160,7 @@
       "id": "q-mult-decimal-1",
       "subtopic": "mult-decimal",
       "type": "fill-in",
-      "question": "Пресметни: {a} · {b} =",
+      "question": "Пресметни: {a} . {b} =",
       "generate": {
         "a": { "type": "decimal", "intMin": 0, "intMax": 10, "decPlaces": [1, 2] },
         "b": { "type": "decimal", "intMin": 0, "intMax": 5, "decPlaces": [1] }
@@ -172,7 +172,7 @@
       "id": "q-mult-props-1",
       "subtopic": "mult-properties",
       "type": "multiple-choice",
-      "question": "Кой израз е равен на {a} · {b} · {c}?",
+      "question": "Кой израз е равен на {a} . {b} . {c}?",
       "generate": {
         "a": { "type": "decimal", "intMin": 1, "intMax": 10, "decPlaces": [1] },
         "b": { "type": "integer", "min": 2, "max": 9 },
@@ -185,7 +185,7 @@
       "id": "q-div-natural-1",
       "subtopic": "div-natural",
       "type": "fill-in",
-      "question": "Пресметни: {a} ÷ {b} =",
+      "question": "Пресметни: {a} : {b} =",
       "generate": {
         "a": { "type": "decimalDivisible", "divisorKey": "b", "intMin": 1, "intMax": 50, "decPlaces": [1, 2] },
         "b": { "type": "integer", "min": 2, "max": 9 }
@@ -200,7 +200,7 @@
       "question": "Пресметни: {a} {op} {factor} =",
       "generate": {
         "a": { "type": "decimal", "intMin": 0, "intMax": 500, "decPlaces": [1, 2, 3] },
-        "op": { "type": "choice", "values": ["·", "÷"] },
+        "op": { "type": "choice", "values": [".", ":"] },
         "factor": { "type": "choice", "values": [10, 100, 1000] }
       },
       "answerFunc": "multDiv10",
@@ -210,7 +210,7 @@
       "id": "q-div-decimal-1",
       "subtopic": "div-decimal",
       "type": "fill-in",
-      "question": "Пресметни: {a} ÷ {b} =",
+      "question": "Пресметни: {a} : {b} =",
       "generate": {
         "a": { "type": "decimalDivisibleByDecimal", "divisorKey": "b", "intMin": 1, "intMax": 30 },
         "b": { "type": "decimal", "intMin": 0, "intMax": 5, "decPlaces": [1] }
@@ -222,14 +222,14 @@
       "id": "q-distributive-1",
       "subtopic": "distributive",
       "type": "multiple-choice",
-      "question": "Кой израз е равен на {a} · ({b} + {c})?",
+      "question": "Кой израз е равен на {a} .({b} + {c})?",
       "generate": {
         "a": { "type": "decimal", "intMin": 1, "intMax": 10, "decPlaces": [1] },
         "b": { "type": "integer", "min": 10, "max": 100 },
         "c": { "type": "integer", "min": 1, "max": 10 }
       },
       "optionsFunc": "distributiveProperty",
-      "explanation": "Разпределително свойство: a · (b + c) = a · b + a · c."
+      "explanation": "Разпределително свойство: a . (b + c) = a . b + a . c."
     },
     {
       "id": "q-unknown-mult-1",

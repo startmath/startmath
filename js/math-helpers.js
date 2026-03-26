@@ -189,7 +189,7 @@ export const answerFunctions = {
 
   multDiv10(values) {
     const { a, op, factor } = values;
-    if (op === '·') return cleanNum(a * factor);
+    if (op === '.') return cleanNum(a * factor);
     return cleanNum(a / factor);
   },
 
@@ -321,8 +321,8 @@ export const optionsFunctions = {
     const correct = `(${bF} + ${cF}) + ${aF}`;
 
     const distractors = [
-      `${aF} · ${bF} + ${cF}`,
-      `${aF} + ${bF} · ${cF}`,
+      `${aF} . ${bF} + ${cF}`,
+      `${aF} + ${bF} . ${cF}`,
       `(${aF} − ${bF}) + ${cF}`
     ];
 
@@ -333,12 +333,12 @@ export const optionsFunctions = {
     const { a, b, c } = values;
     const aF = displayNumber(a);
 
-    const correct = `(${aF} · ${c}) · ${b}`;
+    const correct = `(${aF} . ${c}) . ${b}`;
 
     const distractors = [
-      `${aF} + ${b} · ${c}`,
-      `${aF} · ${b} + ${c}`,
-      `(${aF} + ${b}) · ${c}`
+      `${aF} + ${b} . ${c}`,
+      `${aF} . ${b} + ${c}`,
+      `(${aF} + ${b}) . ${c}`
     ];
 
     return { correct, options: shuffle([correct, ...distractors]) };
@@ -348,12 +348,12 @@ export const optionsFunctions = {
     const { a, b, c } = values;
     const aF = displayNumber(a);
 
-    const correct = `${aF} · ${b} + ${aF} · ${c}`;
+    const correct = `${aF} . ${b} + ${aF} . ${c}`;
 
     const distractors = [
-      `${aF} · ${b} · ${c}`,
-      `${aF} + ${b} · ${c}`,
-      `(${aF} + ${b}) · (${aF} + ${c})`
+      `${aF} . ${b} . ${c}`,
+      `${aF} + ${b} . ${c}`,
+      `(${aF} + ${b}) . (${aF} + ${c})`
     ];
 
     return { correct, options: shuffle([correct, ...distractors]) };
@@ -362,36 +362,42 @@ export const optionsFunctions = {
 
 // ===== Build Equation Text =====
 
+// Format number for KaTeX (use {,} for Bulgarian comma decimal)
+function katexNum(n) {
+  const str = String(Math.round(n * 10000) / 10000);
+  return str.replace('.', '{,}');
+}
+
 export function buildEquationText(eqType, values) {
   const { a, b } = values;
   switch (eqType) {
     case 'unknownAddend': {
       const sum = cleanNum(safeCalc(a, b, '+'));
-      return { text: `x + ${displayNumber(a)} = ${displayNumber(sum)}`, answer: b };
+      return { text: `$x + ${katexNum(a)} = ${katexNum(sum)}$`, answer: b };
     }
     case 'unknownMinuend': {
       const big = Math.max(a, b);
       const small = Math.min(a, b);
       const diff = cleanNum(safeCalc(big, small, '-'));
-      return { text: `x − ${displayNumber(small)} = ${displayNumber(diff)}`, answer: big };
+      return { text: `$x - ${katexNum(small)} = ${katexNum(diff)}$`, answer: big };
     }
     case 'unknownSubtrahend': {
       const big = Math.max(a, b);
       const small = Math.min(a, b);
       const diff = cleanNum(safeCalc(big, small, '-'));
-      return { text: `${displayNumber(big)} − x = ${displayNumber(small)}`, answer: diff };
+      return { text: `$${katexNum(big)} - x = ${katexNum(small)}$`, answer: diff };
     }
     case 'unknownMultiplier': {
       const product = cleanNum(safeCalc(a, b, '*'));
-      return { text: `x · ${b} = ${displayNumber(product)}`, answer: a };
+      return { text: `$x \\cdot ${b} = ${katexNum(product)}$`, answer: a };
     }
     case 'unknownDividend': {
       const quotient = a;
-      return { text: `x ÷ ${b} = ${displayNumber(a)}`, answer: cleanNum(safeCalc(a, b, '*')) };
+      return { text: `$x : ${b} = ${katexNum(a)}$`, answer: cleanNum(safeCalc(a, b, '*')) };
     }
     case 'unknownDivisor': {
       const product = cleanNum(safeCalc(a, b, '*'));
-      return { text: `${displayNumber(product)} ÷ x = ${displayNumber(a)}`, answer: b };
+      return { text: `$${katexNum(product)} : x = ${katexNum(a)}$`, answer: b };
     }
   }
 }
