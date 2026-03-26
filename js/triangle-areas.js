@@ -603,7 +603,7 @@ function checkAnswer(task) {
     <div class="formula-solution">
       <div class="formula-type">${task.typeBG} триъгълник</div>
       <div class="formula-display" id="formula-display">
-        $$S = \\frac{a \\cdot h_a}{2} = \\frac{${baseCm} \\cdot ${heightCm}}{2} = \\frac{${baseCm * heightCm}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$
+        $$S = \\frac{a \\;\\text{.}\\; h_a}{2} = \\frac{${baseCm} \\;\\text{.}\\; ${heightCm}}{2} = \\frac{${baseCm * heightCm}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$
       </div>
     </div>
   `;
