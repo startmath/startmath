@@ -257,6 +257,10 @@
   margin: 0.75rem 0;
   text-align: center;
   font-size: 1.15rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 .formula-box .katex { font-size: 1.2em; }
@@ -273,6 +277,8 @@
   position: relative;
   border-left: 2px solid var(--color-primary-light);
   margin-left: 0.75rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .steps li::before {
@@ -298,9 +304,11 @@
   border-collapse: separate;
   border-spacing: 0;
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow-x: auto;
   margin: 0.5rem 0;
   font-size: 0.92rem;
+  display: block;
+  -webkit-overflow-scrolling: touch;
 }
 
 .summary-table th {
