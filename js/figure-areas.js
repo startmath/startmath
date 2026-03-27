@@ -401,6 +401,9 @@ function renderSolution(svg, task) {
   const baseCm = task.base * cm;
   const heightCm = task.height * cm;
   const horiz = A.y === B.y; // horizontal base vs vertical base
+  const isRight = task.type === 'right';
+  const baseLabel = isRight ? 'a' : 'a';
+  const heightLabel = isRight ? 'b' : 'h';
 
   // --- Base line in red ---
   svg.appendChild(svgEl('line', {
@@ -414,7 +417,7 @@ function renderSolution(svg, task) {
     'font-size': 13, 'font-weight': 'bold',
     fill: '#EF5350', 'font-family': 'Nunito, sans-serif'
   });
-  bl.textContent = `a = ${formatBG(baseCm)} cm`;
+  bl.textContent = `${baseLabel} = ${formatBG(baseCm)} cm`;
   if (horiz) {
     bl.setAttribute('x', (px(A.x) + px(B.x)) / 2);
     bl.setAttribute('y', py(A.y) + 14);
@@ -439,13 +442,15 @@ function renderSolution(svg, task) {
     }));
   }
 
-  // --- Height line in red (dashed) ---
-  svg.appendChild(svgEl('line', {
+  // --- Height/side line in red ---
+  const heightLineAttrs = {
     x1: px(C.x), y1: py(C.y),
     x2: px(H.x), y2: py(H.y),
-    stroke: '#EF5350', 'stroke-width': 2.5, 'stroke-dasharray': '8,5',
+    stroke: '#EF5350', 'stroke-width': 2.5,
     'stroke-linecap': 'round'
-  }));
+  };
+  if (!isRight) heightLineAttrs['stroke-dasharray'] = '8,5';
+  svg.appendChild(svgEl('line', heightLineAttrs));
 
   // Height foot dot
   svg.appendChild(svgEl('circle', {
@@ -458,7 +463,7 @@ function renderSolution(svg, task) {
     'font-size': 13, 'font-weight': 'bold',
     fill: '#EF5350', 'font-family': 'Nunito, sans-serif'
   });
-  hl.textContent = `h = ${formatBG(heightCm)} cm`;
+  hl.textContent = `${heightLabel} = ${formatBG(heightCm)} cm`;
   if (horiz) {
     // Height is vertical — label to the side
     const hMidPy = (py(C.y) + py(H.y)) / 2;
@@ -517,15 +522,31 @@ function showSettingsScreen() {
         </div>
       </div>
 
+      <div id="settings-error" class="settings-error hidden"></div>
       <button class="btn btn-primary" id="start-btn">Започни</button>
     </div>
   `;
 
   $('#start-btn').addEventListener('click', () => {
+    const errEl = $('#settings-error');
+    errEl.classList.add('hidden');
+    errEl.textContent = '';
+
     const count = parseInt($('#task-count').value);
     const cm = parseFloat($('#cm-per-square').value.replace(',', '.'));
-    if (!count || count < 1 || count > 100) { $('#task-count').style.borderColor = 'var(--color-error)'; return; }
-    if (!cm || cm <= 0 || cm > 10) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
+
+    if (!count || count < 1 || count > 100) {
+      $('#task-count').style.borderColor = 'var(--color-error)';
+      errEl.textContent = 'Брой задачи: от 1 до 100';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    if (!cm || cm <= 0 || cm > 10) {
+      $('#cm-per-square').style.borderColor = 'var(--color-error)';
+      errEl.textContent = 'Страна на квадратче: от 0,1 до 10 cm';
+      errEl.classList.remove('hidden');
+      return;
+    }
     config.taskCount = count;
     config.cmPerSquare = cm;
     startTest();
@@ -651,8 +672,12 @@ function checkAnswer(task) {
     <div class="formula-solution">
       <div class="formula-type">${task.typeBG} триъгълник</div>
       <div class="formula-display" id="formula-display">
-        $$S = \\frac{a \\;\\text{.}\\; h_a}{2}$$
-        $$S = \\frac{${baseCm} \\;\\text{.}\\; ${heightCm}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$
+        ${task.type === 'right'
+          ? `$$S = \\frac{a \\;\\text{.}\\; b}{2}$$
+             $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$`
+          : `$$S = \\frac{a \\;\\text{.}\\; h_a}{2}$$
+             $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$`
+        }
       </div>
     </div>
   `;
