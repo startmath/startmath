@@ -508,7 +508,7 @@ function showSettingsScreen() {
       <div class="settings-form">
         <div class="setting-group">
           <label for="task-count">Брой задачи:</label>
-          <input type="number" id="task-count" min="1" max="99" value="6" inputmode="numeric">
+          <input type="number" id="task-count" min="1" max="100" value="6" inputmode="numeric">
         </div>
 
         <div class="setting-group">
@@ -524,8 +524,8 @@ function showSettingsScreen() {
   $('#start-btn').addEventListener('click', () => {
     const count = parseInt($('#task-count').value);
     const cm = parseFloat($('#cm-per-square').value.replace(',', '.'));
-    if (!count || count < 1) { $('#task-count').style.borderColor = 'var(--color-error)'; return; }
-    if (!cm || cm <= 0) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
+    if (!count || count < 1 || count > 100) { $('#task-count').style.borderColor = 'var(--color-error)'; return; }
+    if (!cm || cm <= 0 || cm > 10) { $('#cm-per-square').style.borderColor = 'var(--color-error)'; return; }
     config.taskCount = count;
     config.cmPerSquare = cm;
     startTest();
