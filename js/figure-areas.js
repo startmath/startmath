@@ -395,39 +395,47 @@ function renderDimensionMarker(svg, task, cm) {
   svg.appendChild(dmLabel);
 }
 
-function renderSolution(svg, task) {
+// Clamp SVG coordinates to keep labels inside the viewBox
+function clampX(x) { return Math.max(8, Math.min(SVG_SIZE - 8, x)); }
+function clampY(y) { return Math.max(14, Math.min(SVG_SIZE - 4, y)); }
+
+function renderSolution(svg, task, correct) {
   const cm = config.cmPerSquare;
   const { baseStart: A, baseEnd: B, apex: C, heightFoot: H } = task;
   const baseCm = task.base * cm;
   const heightCm = task.height * cm;
-  const horiz = A.y === B.y; // horizontal base vs vertical base
+  const horiz = A.y === B.y;
   const isRight = task.type === 'right';
-  const baseLabel = isRight ? 'a' : 'a';
   const heightLabel = isRight ? 'b' : 'h';
+  const color = correct ? '#4CAF50' : '#EF5350';
 
-  // --- Base line in red ---
+  // --- Base line ---
   svg.appendChild(svgEl('line', {
     x1: px(A.x), y1: py(A.y),
     x2: px(B.x), y2: py(B.y),
-    stroke: '#EF5350', 'stroke-width': 3.5, 'stroke-linecap': 'round'
+    stroke: color, 'stroke-width': 3.5, 'stroke-linecap': 'round'
   }));
 
-  // Base label
+  // Base label (clamped)
   const bl = svgEl('text', {
     'font-size': 13, 'font-weight': 'bold',
-    fill: '#EF5350', 'font-family': 'Nunito, sans-serif'
+    fill: color, 'font-family': 'Nunito, sans-serif'
   });
-  bl.textContent = `${baseLabel} = ${formatBG(baseCm)} cm`;
+  bl.textContent = `a = ${formatBG(baseCm)} cm`;
   if (horiz) {
-    bl.setAttribute('x', (px(A.x) + px(B.x)) / 2);
-    bl.setAttribute('y', py(A.y) + 14);
+    bl.setAttribute('x', clampX((px(A.x) + px(B.x)) / 2));
+    // Place below if there's room, above if at bottom edge
+    const belowY = py(A.y) + 14;
+    const aboveY = py(A.y) - 6;
+    bl.setAttribute('y', clampY(belowY > SVG_SIZE - 10 ? aboveY : belowY));
     bl.setAttribute('text-anchor', 'middle');
   } else {
     const midY = (py(A.y) + py(B.y)) / 2;
-    const labelX = px(A.x) < px(5) ? px(A.x) - 10 : px(A.x) + 10;
-    bl.setAttribute('x', labelX);
-    bl.setAttribute('y', midY + 4);
-    bl.setAttribute('text-anchor', px(A.x) < px(5) ? 'end' : 'start');
+    const goRight = px(A.x) < px(5);
+    const labelX = goRight ? px(A.x) + 10 : px(A.x) - 10;
+    bl.setAttribute('x', clampX(labelX));
+    bl.setAttribute('y', clampY(midY + 4));
+    bl.setAttribute('text-anchor', goRight ? 'start' : 'end');
   }
   svg.appendChild(bl);
 
@@ -437,16 +445,16 @@ function renderSolution(svg, task) {
       x1: px(H.x), y1: py(H.y),
       x2: horiz ? px(H.x < A.x ? A.x : B.x) : px(A.x),
       y2: horiz ? py(A.y) : py(H.y < Math.min(A.y, B.y) ? Math.min(A.y, B.y) : Math.max(A.y, B.y)),
-      stroke: '#EF5350', 'stroke-width': 1.5, 'stroke-dasharray': '6,4',
+      stroke: color, 'stroke-width': 1.5, 'stroke-dasharray': '6,4',
       'stroke-linecap': 'round'
     }));
   }
 
-  // --- Height/side line in red ---
+  // --- Height/side line ---
   const heightLineAttrs = {
     x1: px(C.x), y1: py(C.y),
     x2: px(H.x), y2: py(H.y),
-    stroke: '#EF5350', 'stroke-width': 2.5,
+    stroke: color, 'stroke-width': 2.5,
     'stroke-linecap': 'round'
   };
   if (!isRight) heightLineAttrs['stroke-dasharray'] = '8,5';
@@ -455,28 +463,28 @@ function renderSolution(svg, task) {
   // Height foot dot
   svg.appendChild(svgEl('circle', {
     cx: px(H.x), cy: py(H.y), r: 3.5,
-    fill: '#EF5350'
+    fill: color
   }));
 
-  // Height label
+  // Height label (clamped)
   const hl = svgEl('text', {
     'font-size': 13, 'font-weight': 'bold',
-    fill: '#EF5350', 'font-family': 'Nunito, sans-serif'
+    fill: color, 'font-family': 'Nunito, sans-serif'
   });
   hl.textContent = `${heightLabel} = ${formatBG(heightCm)} cm`;
   if (horiz) {
-    // Height is vertical — label to the side
     const hMidPy = (py(C.y) + py(H.y)) / 2;
-    const hLabelX = px(C.x) < px(5) ? px(C.x) + 12 : px(C.x) - 12;
-    hl.setAttribute('x', hLabelX);
-    hl.setAttribute('y', hMidPy + 4);
-    hl.setAttribute('text-anchor', px(C.x) < px(5) ? 'start' : 'end');
+    const goRight = px(C.x) < px(5);
+    const hLabelX = goRight ? px(C.x) + 12 : px(C.x) - 12;
+    hl.setAttribute('x', clampX(hLabelX));
+    hl.setAttribute('y', clampY(hMidPy + 4));
+    hl.setAttribute('text-anchor', goRight ? 'start' : 'end');
   } else {
-    // Height is horizontal — label above/below
     const hMidPx = (px(C.x) + px(H.x)) / 2;
-    const hLabelY = py(C.y) < py(5) ? py(C.y) - 8 : py(C.y) + 16;
-    hl.setAttribute('x', hMidPx);
-    hl.setAttribute('y', hLabelY);
+    const goBelow = py(C.y) > py(5);
+    const hLabelY = goBelow ? py(C.y) + 16 : py(C.y) - 8;
+    hl.setAttribute('x', clampX(hMidPx));
+    hl.setAttribute('y', clampY(hLabelY));
     hl.setAttribute('text-anchor', 'middle');
   }
   svg.appendChild(hl);
@@ -489,15 +497,15 @@ function renderSolution(svg, task) {
     const mDirX = H.x <= A.x ? 1 : (H.x >= B.x ? -1 : 1);
     svg.appendChild(svgEl('path', {
       d: `M${mx},${my - mSize} L${mx + mSize * mDirX},${my - mSize} L${mx + mSize * mDirX},${my}`,
-      fill: 'none', stroke: '#EF5350', 'stroke-width': 1.5
+      fill: 'none', stroke: color, 'stroke-width': 1.5
     }));
   } else {
     const mDirY = H.y <= Math.min(A.y, B.y) ? 1 : -1;
-    const mdy = -mSize * mDirY; // SVG y is flipped via py()
+    const mdy = -mSize * mDirY;
     const mdx = C.x > H.x ? mSize : -mSize;
     svg.appendChild(svgEl('path', {
       d: `M${mx + mdx},${my} L${mx + mdx},${my + mdy} L${mx},${my + mdy}`,
-      fill: 'none', stroke: '#EF5350', 'stroke-width': 1.5
+      fill: 'none', stroke: color, 'stroke-width': 1.5
     }));
   }
 }
@@ -655,7 +663,7 @@ function checkAnswer(task) {
 
   // Render solution on grid
   const svg = $('#grid-svg');
-  renderSolution(svg, task);
+  renderSolution(svg, task, correct);
 
   // Show formula
   solutionArea.classList.remove('hidden');
