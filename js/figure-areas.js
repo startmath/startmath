@@ -727,26 +727,24 @@ function generateAllTasks(count, moduleId) {
   const all = [];
 
   if (moduleId === 'triangle') {
-    // Distribute evenly across 3 subtypes, then swap ~25% of slots for non-grid
+    // Distribute evenly across the 3 subtypes
     const per = Math.floor(count / 3);
     const rem = count % 3;
     const baseGens = [generateRightTriangle, generateAcuteTriangle, generateObtuseTriangle];
     for (let i = 0; i < 3; i++) {
       const n = per + (i < rem ? 1 : 0);
       for (let j = 0; j < n; j++) {
-        const useFrame = Math.random() < 0.25;
-        all.push(transformFigure(useFrame ? generateTriangleNonGrid() : baseGens[i]()));
+        all.push(transformFigure(baseGens[i]()));
       }
     }
   } else if (moduleId === 'parallelogram') {
-    // Reserve one rhombus slot when count > 2, the rest mix parallelograms + frame variants
+    // Reserve one rhombus slot when count > 2; the rest are plain parallelograms
     const rhombusCount = count > 2 ? 1 : 0;
     for (let i = 0; i < rhombusCount; i++) {
       all.push(transformFigure(generateRhombus()));
     }
     for (let i = 0; i < count - rhombusCount; i++) {
-      const useFrame = Math.random() < 0.25;
-      all.push(transformFigure(useFrame ? generateParallelogramNonGrid() : generateParallelogram()));
+      all.push(transformFigure(generateParallelogram()));
     }
   } else if (moduleId === 'mixed') {
     // Mix of compound grid-aligned figures + occasional non-grid frame variants
@@ -1153,10 +1151,11 @@ function renderFrameSolution(svg, task, correct) {
     const centroidX = (piece.corner.x + piece.pV.x + piece.pH.x) / 3;
     const centroidY = (piece.corner.y + piece.pV.y + piece.pH.y) / 3;
     const label = svgEl('text', {
-      x: px(centroidX), y: py(centroidY) + 4,
+      x: px(centroidX), y: py(centroidY) + 6,
       'text-anchor': 'middle',
-      'font-size': 11, 'font-weight': 'bold',
-      fill: '#d32f2f', 'font-family': 'Nunito, sans-serif'
+      'font-size': 18, 'font-weight': 'bold',
+      fill: '#d32f2f', 'font-family': 'Nunito, sans-serif',
+      stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
     });
     label.textContent = `S${toSubscript(idx + 1)}`;
     svg.appendChild(label);
@@ -1384,10 +1383,11 @@ function renderMixedSolution(svg, task, correct) {
   if (task.subCentroids) {
     task.subCentroids.forEach((c, i) => {
       const label = svgEl('text', {
-        x: px(c.x), y: py(c.y) + 5,
+        x: px(c.x), y: py(c.y) + 7,
         'text-anchor': 'middle',
-        'font-size': 13, 'font-weight': 'bold',
-        fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif'
+        'font-size': 20, 'font-weight': 'bold',
+        fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif',
+        stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
       });
       label.textContent = `S${toSubscript(i + 1)}`;
       svg.appendChild(label);
