@@ -53,7 +53,8 @@
   margin-bottom: 0.75rem;
 }
 
-.setting-group input {
+.setting-group input,
+.setting-group select {
   padding: 0.65rem 1rem;
   border: 2px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -65,9 +66,21 @@
   transition: border-color var(--transition);
   text-align: center;
   width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.setting-group input:focus {
+.setting-group select {
+  cursor: pointer;
+  text-align-last: center;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%237C5CBF' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+}
+
+.setting-group input:focus,
+.setting-group select:focus {
   outline: none;
   border-color: var(--color-primary);
 }
@@ -245,7 +258,8 @@
     font-size: 1.2rem;
   }
 
-  .setting-group input {
+  .setting-group input,
+  .setting-group select {
     min-height: 52px;
   }
 }

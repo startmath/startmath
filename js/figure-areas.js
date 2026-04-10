@@ -1,4 +1,4 @@
-// ===== Triangle Areas =====
+// ===== Figure Areas =====
 
 // --- Constants ---
 const GRID_SIZE = 10;
@@ -8,7 +8,7 @@ const SVG_SIZE = GRID_SIZE * CELL_PX + 2 * PAD_PX;
 const NS = 'http://www.w3.org/2000/svg';
 
 // --- State ---
-let config = { taskCount: 6, cmPerSquare: 1 };
+let config = { figureType: 'triangle', taskCount: 6, cmPerSquare: 1 };
 let tasks = [];
 let currentIdx = 0;
 let score = 0;
@@ -45,7 +45,6 @@ function shuffle(arr) {
 
 function ensureOneEven(base, height, minB, maxB, minH, maxH) {
   if (base % 2 === 0 || height % 2 === 0) return [base, height];
-  // Make one of them even
   if (Math.random() < 0.5) {
     base = base < maxB ? base + 1 : base - 1;
   } else {
@@ -72,6 +71,7 @@ function generateRightTriangle() {
     : { x: x0 + base, y: y0 + height };
 
   return {
+    figure: 'triangle',
     type: 'right',
     typeBG: 'Правоъгълен',
     vertices: [A, B, C],
@@ -89,17 +89,14 @@ function generateAcuteTriangle() {
     let base = randInt(4, 8);
     let height = randInt(3, 8);
 
-    // Apex offset from left base vertex (must be inside base)
     const apexDx = randInt(1, base - 1);
     const d1 = apexDx;
     const d2 = base - apexDx;
 
-    // Acute condition: h² > d1 * d2
     if (height * height <= d1 * d2) continue;
 
     [base, height] = ensureOneEven(base, height, 4, 8, 3, 8);
 
-    // Re-check with adjusted values
     const nd2 = base - Math.min(apexDx, base - 1);
     if (height * height <= apexDx * nd2) continue;
 
@@ -111,6 +108,7 @@ function generateAcuteTriangle() {
     const realApexDx = Math.min(apexDx, base - 1);
 
     return {
+      figure: 'triangle',
       type: 'acute',
       typeBG: 'Остроъгълен',
       vertices: [
@@ -136,6 +134,7 @@ function generateAcuteTriangle() {
   const apexDx = Math.floor(base / 2);
 
   return {
+    figure: 'triangle',
     type: 'acute',
     typeBG: 'Остроъгълен',
     vertices: [
@@ -179,6 +178,7 @@ function generateObtuseTriangle() {
     const apexX = goLeft ? x0 - overhang : x0 + base + overhang;
 
     return {
+      figure: 'triangle',
       type: 'obtuse',
       typeBG: 'Тъпоъгълен',
       vertices: [
@@ -195,8 +195,8 @@ function generateObtuseTriangle() {
     };
   }
 
-  // Fallback
   return {
+    figure: 'triangle',
     type: 'obtuse',
     typeBG: 'Тъпоъгълен',
     vertices: [
@@ -213,63 +213,222 @@ function generateObtuseTriangle() {
   };
 }
 
-// ===== Task Generation =====
+// ===== Parallelogram Generator =====
 
-function transformTriangle(tri) {
-  const G = GRID_SIZE;
-  const transforms = [
-    (p) => p,                                  // 0°
-    (p) => ({ x: p.y, y: p.x }),               // 90°
-    (p) => ({ x: G - p.x, y: G - p.y }),       // 180°
-    (p) => ({ x: G - p.y, y: G - p.x }),       // 270°
-    (p) => ({ x: G - p.x, y: p.y }),           // mirror horizontal
-    (p) => ({ x: p.x, y: G - p.y }),           // mirror vertical
-    (p) => ({ x: p.y, y: G - p.x }),           // 90° + mirror
-    (p) => ({ x: G - p.y, y: p.x }),           // 270° + mirror
-  ];
-  const fn = transforms[Math.floor(Math.random() * transforms.length)];
+function generateParallelogram() {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const base = randInt(3, 7);
+    const height = randInt(2, 6);
+    const offMag = randInt(1, 3);
+    const offSign = Math.random() < 0.5 ? -1 : 1;
+    const off = offMag * offSign;
+
+    const xMin = Math.min(0, off);
+    const xMax = Math.max(base, base + off);
+    const x0min = -xMin;
+    const x0max = GRID_SIZE - xMax;
+    if (x0min > x0max) continue;
+
+    const x0 = randInt(x0min, x0max);
+    const y0 = randInt(0, GRID_SIZE - height);
+
+    const A = { x: x0, y: y0 };
+    const B = { x: x0 + base, y: y0 };
+    const C = { x: x0 + base + off, y: y0 + height };
+    const D = { x: x0 + off, y: y0 + height };
+
+    // Height dropped from top vertex whose foot lands inside segment AB
+    let heightTop, heightFoot;
+    if (off >= 0) {
+      heightTop = D;
+      heightFoot = { x: x0 + off, y: y0 };
+    } else {
+      heightTop = C;
+      heightFoot = { x: x0 + base + off, y: y0 };
+    }
+
+    return {
+      figure: 'parallelogram',
+      vertices: [A, B, C, D],
+      base,
+      height,
+      baseStart: A,
+      baseEnd: B,
+      heightTop,
+      heightFoot
+    };
+  }
+
+  // Fallback
   return {
-    ...tri,
-    vertices: tri.vertices.map(fn),
-    baseStart: fn(tri.baseStart),
-    baseEnd: fn(tri.baseEnd),
-    apex: fn(tri.apex),
-    heightFoot: fn(tri.heightFoot)
+    figure: 'parallelogram',
+    vertices: [
+      { x: 1, y: 1 }, { x: 6, y: 1 }, { x: 8, y: 5 }, { x: 3, y: 5 }
+    ],
+    base: 5,
+    height: 4,
+    baseStart: { x: 1, y: 1 },
+    baseEnd: { x: 6, y: 1 },
+    heightTop: { x: 3, y: 5 },
+    heightFoot: { x: 3, y: 1 }
   };
 }
 
-function generateAllTasks(count) {
-  const perType = Math.floor(count / 3);
-  const remainder = count % 3;
-  const types = ['right', 'acute', 'obtuse'];
-  const generators = { right: generateRightTriangle, acute: generateAcuteTriangle, obtuse: generateObtuseTriangle };
+// ===== Trapezoid Generator =====
 
-  const allTasks = [];
-  for (let t = 0; t < 3; t++) {
-    const n = perType + (t < remainder ? 1 : 0);
-    for (let i = 0; i < n; i++) {
-      allTasks.push(transformTriangle(generators[types[t]]()));
+function generateTrapezoid() {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const a = randInt(4, 8);
+    const b = randInt(2, a - 1);
+    const h = randInt(2, 6);
+
+    // Need (a+b)*h even so the area is a clean number
+    if (((a + b) * h) % 2 !== 0) continue;
+
+    const diff = a - b;
+    let leftOffset;
+    const r = Math.random();
+    if (r < 0.3) {
+      leftOffset = 0;
+    } else if (r < 0.5) {
+      leftOffset = diff;
+    } else if (r < 0.75 && diff % 2 === 0) {
+      leftOffset = diff / 2;
+    } else if (diff >= 2) {
+      leftOffset = randInt(1, diff - 1);
+    } else {
+      leftOffset = 0;
+    }
+
+    const maxX0 = GRID_SIZE - a;
+    const maxY0 = GRID_SIZE - h;
+    if (maxX0 < 0 || maxY0 < 0) continue;
+    const x0 = randInt(0, maxX0);
+    const y0 = randInt(0, maxY0);
+
+    const rightOffset = diff - leftOffset;
+    const A = { x: x0, y: y0 };
+    const B = { x: x0 + a, y: y0 };
+    const C = { x: x0 + a - rightOffset, y: y0 + h };
+    const D = { x: x0 + leftOffset, y: y0 + h };
+
+    let heightTop, heightFoot, heightOnSide;
+    if (leftOffset === 0) {
+      heightTop = D;
+      heightFoot = A;
+      heightOnSide = true;
+    } else if (rightOffset === 0) {
+      heightTop = C;
+      heightFoot = B;
+      heightOnSide = true;
+    } else {
+      heightTop = D;
+      heightFoot = { x: x0 + leftOffset, y: y0 };
+      heightOnSide = false;
+    }
+
+    return {
+      figure: 'trapezoid',
+      vertices: [A, B, C, D],
+      baseA: a,
+      baseB: b,
+      height: h,
+      bottomStart: A,
+      bottomEnd: B,
+      topStart: D,
+      topEnd: C,
+      heightTop,
+      heightFoot,
+      heightOnSide
+    };
+  }
+
+  // Fallback: simple right trapezoid
+  return {
+    figure: 'trapezoid',
+    vertices: [
+      { x: 1, y: 1 }, { x: 7, y: 1 }, { x: 5, y: 5 }, { x: 1, y: 5 }
+    ],
+    baseA: 6, baseB: 4, height: 4,
+    bottomStart: { x: 1, y: 1 },
+    bottomEnd: { x: 7, y: 1 },
+    topStart: { x: 1, y: 5 },
+    topEnd: { x: 5, y: 5 },
+    heightTop: { x: 1, y: 5 },
+    heightFoot: { x: 1, y: 1 },
+    heightOnSide: true
+  };
+}
+
+// ===== Task Generation =====
+
+function isPoint(v) {
+  return v !== null && typeof v === 'object'
+    && typeof v.x === 'number' && typeof v.y === 'number'
+    && !Array.isArray(v);
+}
+
+function transformFigure(task) {
+  const G = GRID_SIZE;
+  const transforms = [
+    (p) => ({ x: p.x, y: p.y }),
+    (p) => ({ x: p.y, y: p.x }),
+    (p) => ({ x: G - p.x, y: G - p.y }),
+    (p) => ({ x: G - p.y, y: G - p.x }),
+    (p) => ({ x: G - p.x, y: p.y }),
+    (p) => ({ x: p.x, y: G - p.y }),
+    (p) => ({ x: p.y, y: G - p.x }),
+    (p) => ({ x: G - p.y, y: p.x }),
+  ];
+  const fn = transforms[Math.floor(Math.random() * transforms.length)];
+
+  const out = { ...task };
+  for (const [k, v] of Object.entries(task)) {
+    if (Array.isArray(v) && v.length > 0 && v.every(isPoint)) {
+      out[k] = v.map(fn);
+    } else if (isPoint(v)) {
+      out[k] = fn(v);
     }
   }
-  return shuffle(allTasks);
+  return out;
+}
+
+function generateAllTasks(count, moduleId) {
+  const mod = MODULES[moduleId];
+  const gens = mod.generators;
+  const all = [];
+
+  if (mod.distributeEvenly) {
+    const per = Math.floor(count / gens.length);
+    const rem = count % gens.length;
+    for (let i = 0; i < gens.length; i++) {
+      const n = per + (i < rem ? 1 : 0);
+      for (let j = 0; j < n; j++) {
+        all.push(transformFigure(gens[i]()));
+      }
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      const gen = gens[Math.floor(Math.random() * gens.length)];
+      all.push(transformFigure(gen()));
+    }
+  }
+  return shuffle(all);
 }
 
 // ===== SVG Rendering =====
 
 function renderGrid(svg) {
-  // Background
   svg.appendChild(svgEl('rect', {
     x: 0, y: 0, width: SVG_SIZE, height: SVG_SIZE,
     fill: '#fafafa', rx: 8
   }));
 
-  // Grid area background
   svg.appendChild(svgEl('rect', {
     x: px(0), y: py(GRID_SIZE), width: GRID_SIZE * CELL_PX, height: GRID_SIZE * CELL_PX,
     fill: '#fff', stroke: '#e0d6f0', 'stroke-width': 1
   }));
 
-  // Grid lines
   for (let i = 0; i <= GRID_SIZE; i++) {
     svg.appendChild(svgEl('line', {
       x1: px(i), y1: py(0), x2: px(i), y2: py(GRID_SIZE),
@@ -281,7 +440,6 @@ function renderGrid(svg) {
     }));
   }
 
-  // Grid dots
   for (let x = 0; x <= GRID_SIZE; x++) {
     for (let y = 0; y <= GRID_SIZE; y++) {
       svg.appendChild(svgEl('circle', {
@@ -290,14 +448,10 @@ function renderGrid(svg) {
       }));
     }
   }
-
 }
 
-function renderTriangle(svg, task) {
-  const [A, B, C] = task.vertices;
-
-  // Triangle fill + border
-  const points = `${px(A.x)},${py(A.y)} ${px(B.x)},${py(B.y)} ${px(C.x)},${py(C.y)}`;
+function renderPolygon(svg, verts, labels) {
+  const points = verts.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
   svg.appendChild(svgEl('polygon', {
     points,
     fill: 'rgba(124, 92, 191, 0.12)',
@@ -306,11 +460,8 @@ function renderTriangle(svg, task) {
     'stroke-linejoin': 'round'
   }));
 
-  // Vertex dots and labels
-  const labels = ['A', 'B', 'C'];
-  const verts = [A, B, C];
-  const triCenterX = (A.x + B.x + C.x) / 3;
-  const triCenterY = (A.y + B.y + C.y) / 3;
+  const cx = verts.reduce((s, v) => s + v.x, 0) / verts.length;
+  const cy = verts.reduce((s, v) => s + v.y, 0) / verts.length;
 
   verts.forEach((v, i) => {
     svg.appendChild(svgEl('circle', {
@@ -318,9 +469,8 @@ function renderTriangle(svg, task) {
       fill: '#7C5CBF'
     }));
 
-    // Label offset: push away from triangle center
-    let dx = v.x - triCenterX;
-    let dy = v.y - triCenterY;
+    let dx = v.x - cx;
+    let dy = v.y - cy;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     dx = (dx / len) * 18;
     dy = (dy / len) * 18;
@@ -337,17 +487,9 @@ function renderTriangle(svg, task) {
     label.textContent = labels[i];
     svg.appendChild(label);
   });
-
-  // Dimension marker — pick the corner farthest from the triangle
-  renderDimensionMarker(svg, task, config.cmPerSquare);
 }
 
-function renderDimensionMarker(svg, task, cm) {
-  const [A, B, C] = task.vertices;
-  const triCX = (A.x + B.x + C.x) / 3;
-  const triCY = (A.y + B.y + C.y) / 3;
-
-  // Four corners: (0,0), (9,0), (0,9), (9,9) — top-left of each 1x1 square
+function renderDimensionMarker(svg, centerX, centerY, cm) {
   const corners = [
     { gx: 0, gy: 0 },
     { gx: GRID_SIZE - 1, gy: 0 },
@@ -355,13 +497,12 @@ function renderDimensionMarker(svg, task, cm) {
     { gx: GRID_SIZE - 1, gy: GRID_SIZE - 1 }
   ];
 
-  // Pick corner with greatest distance from triangle center
   let best = corners[0];
   let bestDist = 0;
   for (const c of corners) {
     const cx = c.gx + 0.5;
     const cy = c.gy + 0.5;
-    const d = (cx - triCX) ** 2 + (cy - triCY) ** 2;
+    const d = (cx - centerX) ** 2 + (cy - centerY) ** 2;
     if (d > bestDist) { bestDist = d; best = c; }
   }
 
@@ -370,7 +511,6 @@ function renderDimensionMarker(svg, task, cm) {
   const dmY = (py(best.gy) + py(best.gy + 1)) / 2;
   const tick = 5;
 
-  // Horizontal line with ticks
   svg.appendChild(svgEl('line', {
     x1: dmX, y1: dmY, x2: dmX2, y2: dmY,
     stroke: '#888', 'stroke-width': 1.5
@@ -384,7 +524,6 @@ function renderDimensionMarker(svg, task, cm) {
     stroke: '#888', 'stroke-width': 1.5
   }));
 
-  // Label
   const cmText = formatBG(cm);
   const dmLabel = svgEl('text', {
     x: (dmX + dmX2) / 2, y: dmY - 8,
@@ -395,11 +534,154 @@ function renderDimensionMarker(svg, task, cm) {
   svg.appendChild(dmLabel);
 }
 
+function centroid(verts) {
+  const cx = verts.reduce((s, v) => s + v.x, 0) / verts.length;
+  const cy = verts.reduce((s, v) => s + v.y, 0) / verts.length;
+  return { x: cx, y: cy };
+}
+
 // Clamp SVG coordinates to keep labels inside the viewBox
 function clampX(x) { return Math.max(8, Math.min(SVG_SIZE - 8, x)); }
 function clampY(y) { return Math.max(14, Math.min(SVG_SIZE - 4, y)); }
 
-function renderSolution(svg, task, correct) {
+// ===== Figure-specific Rendering =====
+
+function renderTriangleFigure(svg, task) {
+  renderPolygon(svg, task.vertices, ['A', 'B', 'C']);
+  const c = centroid(task.vertices);
+  renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
+}
+
+function renderParallelogramFigure(svg, task) {
+  renderPolygon(svg, task.vertices, ['A', 'B', 'C', 'D']);
+  const c = centroid(task.vertices);
+  renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
+}
+
+function renderTrapezoidFigure(svg, task) {
+  renderPolygon(svg, task.vertices, ['A', 'B', 'C', 'D']);
+  const c = centroid(task.vertices);
+  renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
+}
+
+// ===== Solution Rendering =====
+
+// Draws a colored segment along an edge of the polygon with a label.
+// `centerPt` is used to place the label on the side opposite the figure center.
+function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
+  svg.appendChild(svgEl('line', {
+    x1: px(start.x), y1: py(start.y),
+    x2: px(end.x), y2: py(end.y),
+    stroke: color, 'stroke-width': 3.5, 'stroke-linecap': 'round'
+  }));
+
+  const horiz = start.y === end.y;
+  const label = svgEl('text', {
+    'font-size': 13, 'font-weight': 'bold',
+    fill: color, 'font-family': 'Nunito, sans-serif'
+  });
+  label.textContent = labelText;
+
+  if (horiz) {
+    const midPX = (px(start.x) + px(end.x)) / 2;
+    const edgePY = py(start.y);
+    const centerPY = py(centerPt.y);
+    // Place label on the side opposite the center
+    let y = centerPY < edgePY ? edgePY + 14 : edgePY - 6;
+    // If off-canvas, flip
+    if (y > SVG_SIZE - 4) y = edgePY - 6;
+    if (y < 14) y = edgePY + 14;
+    label.setAttribute('x', clampX(midPX));
+    label.setAttribute('y', clampY(y));
+    label.setAttribute('text-anchor', 'middle');
+  } else {
+    const midPY = (py(start.y) + py(end.y)) / 2;
+    const edgePX = px(start.x);
+    const centerPX = px(centerPt.x);
+    const goRight = centerPX < edgePX;
+    const x = goRight ? edgePX + 10 : edgePX - 10;
+    label.setAttribute('x', clampX(x));
+    label.setAttribute('y', clampY(midPY + 4));
+    label.setAttribute('text-anchor', goRight ? 'start' : 'end');
+  }
+  svg.appendChild(label);
+}
+
+// Draws the height line + foot dot + label. If `dashed` is true, the line is dashed.
+function drawHeightWithLabel(svg, top, foot, labelText, color, dashed, baseStart, baseEnd) {
+  const attrs = {
+    x1: px(top.x), y1: py(top.y),
+    x2: px(foot.x), y2: py(foot.y),
+    stroke: color, 'stroke-width': dashed ? 2.5 : 2.5,
+    'stroke-linecap': 'round'
+  };
+  if (dashed) attrs['stroke-dasharray'] = '8,5';
+  svg.appendChild(svgEl('line', attrs));
+
+  svg.appendChild(svgEl('circle', {
+    cx: px(foot.x), cy: py(foot.y), r: 3.5,
+    fill: color
+  }));
+
+  const baseHoriz = baseStart.y === baseEnd.y;
+  const hl = svgEl('text', {
+    'font-size': 13, 'font-weight': 'bold',
+    fill: color, 'font-family': 'Nunito, sans-serif'
+  });
+  hl.textContent = labelText;
+
+  if (baseHoriz) {
+    const hMidPy = (py(top.y) + py(foot.y)) / 2;
+    const goRight = px(top.x) < px(5);
+    const hLabelX = goRight ? px(top.x) + 12 : px(top.x) - 12;
+    hl.setAttribute('x', clampX(hLabelX));
+    hl.setAttribute('y', clampY(hMidPy + 4));
+    hl.setAttribute('text-anchor', goRight ? 'start' : 'end');
+  } else {
+    const hMidPx = (px(top.x) + px(foot.x)) / 2;
+    const goBelow = py(top.y) > py(5);
+    const hLabelY = goBelow ? py(top.y) + 16 : py(top.y) - 8;
+    hl.setAttribute('x', clampX(hMidPx));
+    hl.setAttribute('y', clampY(hLabelY));
+    hl.setAttribute('text-anchor', 'middle');
+  }
+  svg.appendChild(hl);
+}
+
+// Vector-based right-angle marker that works for any rotation.
+// v1 = height direction (foot→top), v2 = base direction flipped to point
+// toward the shape center so the marker sits inside the figure.
+function drawRightAngleMarker(svg, foot, top, baseStart, baseEnd, shapeCenter, color) {
+  const mSize = 8;
+  const fx = px(foot.x);
+  const fy = py(foot.y);
+
+  const tdx = px(top.x) - fx;
+  const tdy = py(top.y) - fy;
+  const tLen = Math.hypot(tdx, tdy) || 1;
+  const v1x = (tdx / tLen) * mSize;
+  const v1y = (tdy / tLen) * mSize;
+
+  const bdx = px(baseEnd.x) - px(baseStart.x);
+  const bdy = py(baseEnd.y) - py(baseStart.y);
+  const bLen = Math.hypot(bdx, bdy) || 1;
+  let v2x = (bdx / bLen) * mSize;
+  let v2y = (bdy / bLen) * mSize;
+
+  const cx = px(shapeCenter.x) - fx;
+  const cy = py(shapeCenter.y) - fy;
+  if (v2x * cx + v2y * cy < 0) {
+    v2x = -v2x;
+    v2y = -v2y;
+  }
+
+  svg.appendChild(svgEl('path', {
+    d: `M${fx + v1x},${fy + v1y} L${fx + v1x + v2x},${fy + v1y + v2y} L${fx + v2x},${fy + v2y}`,
+    fill: 'none', stroke: color, 'stroke-width': 1.5
+  }));
+}
+
+function renderTriangleSolution(svg, task, correct) {
   const cm = config.cmPerSquare;
   const { baseStart: A, baseEnd: B, apex: C, heightFoot: H } = task;
   const baseCm = task.base * cm;
@@ -409,14 +691,13 @@ function renderSolution(svg, task, correct) {
   const heightLabel = isRight ? 'b' : 'h';
   const color = correct ? '#4CAF50' : '#EF5350';
 
-  // --- Base line ---
+  // Base (preserve original positioning logic exactly for triangles)
   svg.appendChild(svgEl('line', {
     x1: px(A.x), y1: py(A.y),
     x2: px(B.x), y2: py(B.y),
     stroke: color, 'stroke-width': 3.5, 'stroke-linecap': 'round'
   }));
 
-  // Base label (clamped)
   const bl = svgEl('text', {
     'font-size': 13, 'font-weight': 'bold',
     fill: color, 'font-family': 'Nunito, sans-serif'
@@ -424,7 +705,6 @@ function renderSolution(svg, task, correct) {
   bl.textContent = `a = ${formatBG(baseCm)} cm`;
   if (horiz) {
     bl.setAttribute('x', clampX((px(A.x) + px(B.x)) / 2));
-    // Place below if there's room, above if at bottom edge
     const belowY = py(A.y) + 14;
     const aboveY = py(A.y) - 6;
     bl.setAttribute('y', clampY(belowY > SVG_SIZE - 10 ? aboveY : belowY));
@@ -439,7 +719,7 @@ function renderSolution(svg, task, correct) {
   }
   svg.appendChild(bl);
 
-  // --- For obtuse: extend base line to foot (dashed) ---
+  // Obtuse: dashed extension of base line to foot
   if (task.type === 'obtuse') {
     svg.appendChild(svgEl('line', {
       x1: px(H.x), y1: py(H.y),
@@ -450,7 +730,7 @@ function renderSolution(svg, task, correct) {
     }));
   }
 
-  // --- Height/side line ---
+  // Height/side line
   const heightLineAttrs = {
     x1: px(C.x), y1: py(C.y),
     x2: px(H.x), y2: py(H.y),
@@ -460,13 +740,12 @@ function renderSolution(svg, task, correct) {
   if (!isRight) heightLineAttrs['stroke-dasharray'] = '8,5';
   svg.appendChild(svgEl('line', heightLineAttrs));
 
-  // Height foot dot
   svg.appendChild(svgEl('circle', {
     cx: px(H.x), cy: py(H.y), r: 3.5,
     fill: color
   }));
 
-  // Height label (clamped)
+  // Height label
   const hl = svgEl('text', {
     'font-size': 13, 'font-weight': 'bold',
     fill: color, 'font-family': 'Nunito, sans-serif'
@@ -489,7 +768,7 @@ function renderSolution(svg, task, correct) {
   }
   svg.appendChild(hl);
 
-  // --- Right-angle marker at foot ---
+  // Right-angle marker at foot
   const mSize = 8;
   const mx = px(H.x);
   const my = py(H.y);
@@ -510,15 +789,133 @@ function renderSolution(svg, task, correct) {
   }
 }
 
+function renderParallelogramSolution(svg, task, correct) {
+  const cm = config.cmPerSquare;
+  const { baseStart: A, baseEnd: B, heightTop: T, heightFoot: H } = task;
+  const baseCm = task.base * cm;
+  const heightCm = task.height * cm;
+  const color = correct ? '#4CAF50' : '#EF5350';
+  const center = centroid(task.vertices);
+
+  drawEdgeWithLabel(svg, A, B, `a = ${formatBG(baseCm)} cm`, color, center);
+  drawHeightWithLabel(svg, T, H, `h = ${formatBG(heightCm)} cm`, color, true, A, B);
+  drawRightAngleMarker(svg, H, T, A, B, center, color);
+}
+
+function renderTrapezoidSolution(svg, task, correct) {
+  const cm = config.cmPerSquare;
+  const { bottomStart: A, bottomEnd: B, topStart: D, topEnd: C, heightTop: T, heightFoot: H } = task;
+  const aCm = task.baseA * cm;
+  const bCm = task.baseB * cm;
+  const heightCm = task.height * cm;
+  const color = correct ? '#4CAF50' : '#EF5350';
+  const center = centroid(task.vertices);
+
+  drawEdgeWithLabel(svg, A, B, `a = ${formatBG(aCm)} cm`, color, center);
+  drawEdgeWithLabel(svg, D, C, `b = ${formatBG(bCm)} cm`, color, center);
+  drawHeightWithLabel(svg, T, H, `h = ${formatBG(heightCm)} cm`, color, !task.heightOnSide, A, B);
+  drawRightAngleMarker(svg, H, T, A, B, center, color);
+}
+
+// ===== Formula HTML =====
+
+function triangleFormulaHTML(task, cm, area) {
+  const baseCm = task.base * cm;
+  const heightCm = task.height * cm;
+  const isRight = task.type === 'right';
+  return isRight
+    ? `$$S = \\frac{a \\;\\text{.}\\; b}{2}$$
+       $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`
+    : `$$S = \\frac{a \\;\\text{.}\\; h_a}{2}$$
+       $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
+}
+
+function parallelogramFormulaHTML(task, cm, area) {
+  const baseCm = task.base * cm;
+  const heightCm = task.height * cm;
+  return `$$S = a \\;\\text{.}\\; h$$
+          $$S = ${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)} = ${formatBG(area)} \\text{ cm}^2$$`;
+}
+
+function trapezoidFormulaHTML(task, cm, area) {
+  const aCm = task.baseA * cm;
+  const bCm = task.baseB * cm;
+  const hCm = task.height * cm;
+  const sum = aCm + bCm;
+  return `$$S = \\frac{(a + b) \\;\\text{.}\\; h}{2}$$
+          $$S = \\frac{(${formatBG(aCm)} + ${formatBG(bCm)}) \\;\\text{.}\\; ${formatBG(hCm)}}{2} = \\frac{${formatBG(sum)} \\;\\text{.}\\; ${formatBG(hCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
+}
+
+// ===== Figure Modules =====
+
+const MODULES = {
+  triangle: {
+    label: 'Триъгълник',
+    titlePlural: 'Лица на триъгълници',
+    generators: [generateRightTriangle, generateAcuteTriangle, generateObtuseTriangle],
+    distributeEvenly: true,
+    hasSubtypeBreakdown: true,
+    typeNames: { right: 'Правоъгълен', acute: 'Остроъгълен', obtuse: 'Тъпоъгълен' },
+    breakdownTitle: 'Резултати по вид триъгълник',
+    computeArea: (task, cm) => (task.base * cm * task.height * cm) / 2,
+    renderFigure: renderTriangleFigure,
+    renderSolution: renderTriangleSolution,
+    formulaHTML: triangleFormulaHTML,
+    typeLabel: (task) => `${task.typeBG} триъгълник`
+  },
+  parallelogram: {
+    label: 'Успоредник',
+    titlePlural: 'Лица на успоредници',
+    generators: [generateParallelogram],
+    distributeEvenly: false,
+    hasSubtypeBreakdown: false,
+    computeArea: (task, cm) => task.base * cm * task.height * cm,
+    renderFigure: renderParallelogramFigure,
+    renderSolution: renderParallelogramSolution,
+    formulaHTML: parallelogramFormulaHTML,
+    typeLabel: () => 'Успоредник'
+  },
+  trapezoid: {
+    label: 'Трапец',
+    titlePlural: 'Лица на трапеци',
+    generators: [generateTrapezoid],
+    distributeEvenly: false,
+    hasSubtypeBreakdown: false,
+    computeArea: (task, cm) => ((task.baseA + task.baseB) * cm * task.height * cm) / 2,
+    renderFigure: renderTrapezoidFigure,
+    renderSolution: renderTrapezoidSolution,
+    formulaHTML: trapezoidFormulaHTML,
+    typeLabel: () => 'Трапец'
+  }
+};
+
+function updatePageHeading(moduleId) {
+  const mod = MODULES[moduleId];
+  document.title = `${mod.titlePlural} - StartMath`;
+  const h1 = document.querySelector('.section-title h1');
+  if (h1) h1.textContent = mod.titlePlural;
+  const crumb = document.querySelector('.breadcrumb .current');
+  if (crumb) crumb.textContent = mod.titlePlural;
+}
+
 // ===== Screens =====
 
 function showSettingsScreen() {
   const container = $('#tri-container');
   container.innerHTML = `
     <div class="tri-settings animate-in">
-      <p>Намери лицето на триъгълниците, начертани в квадратна мрежа</p>
+      <p>Намери лицето на фигурите, начертани в квадратна мрежа</p>
 
       <div class="settings-form">
+        <div class="setting-group">
+          <label for="figure-type">Вид фигура:</label>
+          <select id="figure-type">
+            <option value="triangle">Триъгълник</option>
+            <option value="parallelogram">Успоредник</option>
+            <option value="trapezoid">Трапец</option>
+          </select>
+        </div>
+
         <div class="setting-group">
           <label for="task-count">Брой задачи:</label>
           <input type="number" id="task-count" min="1" max="100" value="6" inputmode="numeric">
@@ -535,11 +932,19 @@ function showSettingsScreen() {
     </div>
   `;
 
+  // Restore last selection
+  $('#figure-type').value = config.figureType;
+  $('#figure-type').addEventListener('change', (e) => {
+    updatePageHeading(e.target.value);
+  });
+  updatePageHeading(config.figureType);
+
   $('#start-btn').addEventListener('click', () => {
     const errEl = $('#settings-error');
     errEl.classList.add('hidden');
     errEl.textContent = '';
 
+    const figureType = $('#figure-type').value;
     const count = parseInt($('#task-count').value);
     const cm = parseFloat($('#cm-per-square').value.replace(',', '.'));
 
@@ -555,14 +960,16 @@ function showSettingsScreen() {
       errEl.classList.remove('hidden');
       return;
     }
+    config.figureType = figureType;
     config.taskCount = count;
     config.cmPerSquare = cm;
+    updatePageHeading(figureType);
     startTest();
   });
 }
 
 function startTest() {
-  tasks = generateAllTasks(config.taskCount);
+  tasks = generateAllTasks(config.taskCount, config.figureType);
   currentIdx = 0;
   score = 0;
   results = [];
@@ -571,6 +978,7 @@ function startTest() {
 
 function showTask() {
   const task = tasks[currentIdx];
+  const mod = MODULES[config.figureType];
   const container = $('#tri-container');
 
   container.innerHTML = `
@@ -605,7 +1013,7 @@ function showTask() {
 
   const svg = $('#grid-svg');
   renderGrid(svg);
-  renderTriangle(svg, task);
+  mod.renderFigure(svg, task);
 
   const input = $('#area-input');
   const checkBtn = $('#check-btn');
@@ -623,10 +1031,10 @@ function checkAnswer(task) {
   const checkBtn = $('#check-btn');
   const solutionArea = $('#solution-area');
   const nextArea = $('#next-area');
+  const mod = MODULES[config.figureType];
 
   if (input.disabled) return;
 
-  // Parse answer (accept comma and period)
   const raw = input.value.trim().replace(',', '.');
   const userAnswer = parseFloat(raw);
 
@@ -637,13 +1045,10 @@ function checkAnswer(task) {
   }
 
   const cm = config.cmPerSquare;
-  const baseCm = task.base * cm;
-  const heightCm = task.height * cm;
-  const correctArea = (baseCm * heightCm) / 2;
+  const correctArea = mod.computeArea(task, cm);
 
   const correct = Math.abs(userAnswer - correctArea) < 0.05;
 
-  // Disable input
   input.disabled = true;
   checkBtn.disabled = true;
   checkBtn.style.opacity = '0.5';
@@ -657,15 +1062,12 @@ function checkAnswer(task) {
 
   results.push(correct);
 
-  // Update score display
   const scoreEl = document.querySelector('.tri-score');
   if (scoreEl) scoreEl.textContent = `${score} \u2713`;
 
-  // Render solution on grid
   const svg = $('#grid-svg');
-  renderSolution(svg, task, correct);
+  mod.renderSolution(svg, task, correct);
 
-  // Show formula
   solutionArea.classList.remove('hidden');
 
   const icon = correct ? '\u2713' : '\u2717';
@@ -678,19 +1080,13 @@ function checkAnswer(task) {
       <span>${prefix}</span>
     </div>
     <div class="formula-solution">
-      <div class="formula-type">${task.typeBG} триъгълник</div>
+      <div class="formula-type">${mod.typeLabel(task)}</div>
       <div class="formula-display" id="formula-display">
-        ${task.type === 'right'
-          ? `$$S = \\frac{a \\;\\text{.}\\; b}{2}$$
-             $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$`
-          : `$$S = \\frac{a \\;\\text{.}\\; h_a}{2}$$
-             $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(correctArea)} \\text{ cm}^2$$`
-        }
+        ${mod.formulaHTML(task, cm, correctArea)}
       </div>
     </div>
   `;
 
-  // Render KaTeX in solution
   waitForKaTeX(() => {
     const el = $('#formula-display');
     if (el && window.renderMathInElement) {
@@ -704,7 +1100,6 @@ function checkAnswer(task) {
     }
   });
 
-  // Show next button
   nextArea.classList.remove('hidden');
   const isLast = currentIdx === tasks.length - 1;
   nextArea.innerHTML = `
@@ -723,6 +1118,7 @@ function checkAnswer(task) {
 
 function showScoreScreen() {
   const container = $('#tri-container');
+  const mod = MODULES[config.figureType];
   const total = tasks.length;
   const wrong = total - score;
   const pct = Math.round((score / total) * 100);
@@ -734,30 +1130,36 @@ function showScoreScreen() {
   else if (pct >= 40) message = 'Може и по-добре. Опитай пак!';
   else message = 'Повтори материала и опитай отново.';
 
-  // Per-type breakdown
-  const typeResults = {
-    right: { correct: 0, total: 0 },
-    acute: { correct: 0, total: 0 },
-    obtuse: { correct: 0, total: 0 }
-  };
-  tasks.forEach((t, i) => {
-    typeResults[t.type].total++;
-    if (results[i]) typeResults[t.type].correct++;
-  });
-
-  const typeNames = { right: 'Правоъгълен', acute: 'Остроъгълен', obtuse: 'Тъпоъгълен' };
-
   let breakdownHTML = '';
-  for (const [type, data] of Object.entries(typeResults)) {
-    if (data.total === 0) continue;
-    const icon = data.correct === data.total ? '\u2713' : (data.correct > 0 ? '~' : '\u2717');
-    const color = data.correct === data.total
-      ? 'var(--color-success)'
-      : (data.correct > 0 ? 'var(--color-accent)' : 'var(--color-error)');
-    breakdownHTML += `
-      <div class="breakdown-item">
-        <span>${typeNames[type]}</span>
-        <span><span style="color: ${color}; font-weight: 800;">${icon}</span> ${data.correct}/${data.total}</span>
+  if (mod.hasSubtypeBreakdown) {
+    const typeResults = {};
+    for (const key of Object.keys(mod.typeNames)) {
+      typeResults[key] = { correct: 0, total: 0 };
+    }
+    tasks.forEach((t, i) => {
+      if (!typeResults[t.type]) return;
+      typeResults[t.type].total++;
+      if (results[i]) typeResults[t.type].correct++;
+    });
+
+    let itemsHTML = '';
+    for (const [type, data] of Object.entries(typeResults)) {
+      if (data.total === 0) continue;
+      const icon = data.correct === data.total ? '\u2713' : (data.correct > 0 ? '~' : '\u2717');
+      const color = data.correct === data.total
+        ? 'var(--color-success)'
+        : (data.correct > 0 ? 'var(--color-accent)' : 'var(--color-error)');
+      itemsHTML += `
+        <div class="breakdown-item">
+          <span>${mod.typeNames[type]}</span>
+          <span><span style="color: ${color}; font-weight: 800;">${icon}</span> ${data.correct}/${data.total}</span>
+        </div>
+      `;
+    }
+    breakdownHTML = `
+      <div class="score-breakdown">
+        <h4>${mod.breakdownTitle}</h4>
+        ${itemsHTML}
       </div>
     `;
   }
@@ -778,10 +1180,7 @@ function showScoreScreen() {
         <button class="btn btn-primary" id="retry-btn">Опитай отново</button>
         <button class="btn btn-outline" id="settings-btn">Нови настройки</button>
       </div>
-      <div class="score-breakdown">
-        <h4>Резултати по вид триъгълник</h4>
-        ${breakdownHTML}
-      </div>
+      ${breakdownHTML}
     </div>
   `;
 
@@ -792,7 +1191,8 @@ function showScoreScreen() {
 // ===== Utilities =====
 
 function formatBG(num) {
-  const str = String(num);
+  const rounded = Math.round(num * 100) / 100;
+  const str = String(rounded);
   return str.replace('.', ',');
 }
 

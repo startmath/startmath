@@ -11,9 +11,9 @@
       "active": true
     },
     {
-      "id": "litsa-na-triagalnitsi",
-      "title": "Лица на триъгълници",
-      "description": "Намиране на лица на триъгълници в квадратна мрежа",
+      "id": "litsa-na-figuri",
+      "title": "Лица на фигури",
+      "description": "Намиране на лица на триъгълници, успоредници и трапеци в квадратна мрежа",
       "icon": "📐",
       "subtopicCount": 3,
       "active": true,
