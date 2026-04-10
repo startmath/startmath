@@ -34,11 +34,13 @@ const loader = new Function(src + `
     generateParallelogram, generateRhombus,
     generateTrapezoid,
     generateTriangleNonGrid, generateParallelogramNonGrid,
-    generateMixed, generateRect, generateHouse, generateRectTrapezoid,
-    generateLShape, generateRectTriangleSide,
+    generateMixed, generateHouse, generateRectTrapezoid,
+    generateRectTriangleSide, generateTrapezoidTriangle,
+    MIXED_TEMPLATES, simplifyPolygon,
     MODULES,
     parallelogramFormulaHTML, triangleFormulaHTML, trapezoidFormulaHTML,
-    mixedFormulaHTML, frameFormulaHTML
+    mixedFormulaHTML, frameFormulaHTML,
+    trapezoidOrientedLabels, transformDeep
   };
 `);
 const fa = loader();
@@ -310,14 +312,25 @@ section('mixed module', () => {
     assert(sawNonGrid, 'mixed mode should produce at least one non-grid task across 30 batches');
   });
 
-  test('eventually generates compound shapes of every template', () => {
+  test('eventually generates every current template', () => {
     const seen = new Set();
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 120; i++) {
       const tasks = fa.generateAllTasks(20, 'mixed');
       for (const t of tasks) if (t.template) seen.add(t.template);
     }
-    for (const expected of ['rect', 'house', 'rectTrap', 'lshape', 'rectTriSide']) {
-      assert(seen.has(expected), `template ${expected} never generated across 80 batches`);
+    for (const expected of ['house', 'rectTrap', 'rectTriSide', 'trapTriangle']) {
+      assert(seen.has(expected), `template ${expected} never generated across 120 batches`);
+    }
+  });
+
+  test('never generates plain rectangle / L-shape templates', () => {
+    for (let i = 0; i < 60; i++) {
+      const tasks = fa.generateAllTasks(20, 'mixed');
+      for (const t of tasks) {
+        assert(t.template !== 'rect', 'rect template should be removed');
+        assert(t.template !== 'lshape', 'lshape template should be removed');
+        assert(t.template !== 'square', 'square template should be removed');
+      }
     }
   });
 
@@ -430,10 +443,10 @@ section('transform preservation', () => {
       fa.generateRhombus(),
       fa.generateTrapezoid(),
       fa.generateHouse(),
-      fa.generateLShape(),
+      fa.generateTrapezoidTriangle(),
       fa.generateTriangleNonGrid(),
       fa.generateParallelogramNonGrid()
-    ];
+    ].filter(Boolean);
     for (const base of samples) {
       for (let i = 0; i < 8; i++) {
         const t = fa.transformFigure(base);
@@ -450,10 +463,10 @@ section('transform preservation', () => {
       fa.generateParallelogram(),
       fa.generateTrapezoid(),
       fa.generateHouse(),
-      fa.generateLShape(),
+      fa.generateTrapezoidTriangle(),
       fa.generateTriangleNonGrid(),
       fa.generateParallelogramNonGrid()
-    ];
+    ].filter(Boolean);
     for (const base of samples) {
       const baseArea = fa.shoelace(base.vertices);
       for (let i = 0; i < 8; i++) {
@@ -520,6 +533,112 @@ section('frame decomposition', () => {
       const d = fa.decomposeBBoxFrame(p.vertices);
       assertEq(d.pieces.length, 4);
     }
+  });
+});
+
+section('trapezoid a/b orientation labeling', () => {
+  function isCollinear(p, q) { return p.x === q.x || p.y === q.y; }
+
+  test('across every transform, a is bottom (horizontal) or left (vertical)', () => {
+    // Generate a bunch of trapezoids, transform each through all 8 transforms,
+    // and verify the oriented labels pick the "bottom/left" side as `a`.
+    for (let i = 0; i < 20; i++) {
+      const base = fa.generateTrapezoid();
+      for (let k = 0; k < 20; k++) {
+        const t = fa.transformFigure(base);
+        const { aStart, aEnd, bStart, bEnd } = fa.trapezoidOrientedLabels(t);
+        const horizontal = aStart.y === aEnd.y;
+        if (horizontal) {
+          assert(bStart.y === bEnd.y, 'both parallel pairs must share orientation');
+          assert(aStart.y < bStart.y,
+            `horizontal trapezoid: a should be bottom (lower y). a.y=${aStart.y} b.y=${bStart.y}`);
+        } else {
+          assert(aStart.x === aEnd.x && bStart.x === bEnd.x, 'vertical pairs expected');
+          assert(aStart.x < bStart.x,
+            `vertical trapezoid: a should be left (lower x). a.x=${aStart.x} b.x=${bStart.x}`);
+        }
+      }
+    }
+  });
+
+  test('a and b lengths still sum to canonical baseA + baseB', () => {
+    for (let i = 0; i < 20; i++) {
+      const t = fa.transformFigure(fa.generateTrapezoid());
+      const { aLen, bLen } = fa.trapezoidOrientedLabels(t);
+      assertEq(aLen + bLen, t.baseA + t.baseB);
+    }
+  });
+
+  test('trapezoid formula shows the oriented a and b values', () => {
+    for (let i = 0; i < 10; i++) {
+      const t = fa.transformFigure(fa.generateTrapezoid());
+      const { aLen, bLen } = fa.trapezoidOrientedLabels(t);
+      const html = fa.trapezoidFormulaHTML(t, 1, (t.baseA + t.baseB) * t.height / 2);
+      // The "(a + b) · h" expansion should show aLen first and bLen second
+      const re = new RegExp(`\\(${aLen} \\+ ${bLen}\\)`);
+      assert(re.test(html), `formula should contain "(${aLen} + ${bLen})": ${html}`);
+    }
+  });
+});
+
+section('mixed templates — no collinear fake vertices', () => {
+  function hasCollinearTriple(verts) {
+    const n = verts.length;
+    for (let i = 0; i < n; i++) {
+      const p = verts[(i - 1 + n) % n];
+      const q = verts[i];
+      const r = verts[(i + 1) % n];
+      const cross = (q.x - p.x) * (r.y - q.y) - (q.y - p.y) * (r.x - q.x);
+      if (cross === 0) return true;
+    }
+    return false;
+  }
+
+  test('simplifyPolygon strips a known collinear triple', () => {
+    const input = [
+      { x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 3 },
+      { x: 3, y: 3 }, { x: 0, y: 3 } // (3,3) is collinear with (5,3) and (0,3)
+    ];
+    const simplified = fa.simplifyPolygon(input);
+    assertEq(simplified.length, 4);
+    // The surviving vertices should be the bbox corners
+    const xs = simplified.map(v => v.x).sort((a, b) => a - b);
+    const ys = simplified.map(v => v.y).sort((a, b) => a - b);
+    assertEq(xs[0], 0); assertEq(xs[xs.length - 1], 5);
+    assertEq(ys[0], 0); assertEq(ys[ys.length - 1], 3);
+  });
+
+  test('every generated mixed compound task has no collinear triples', () => {
+    for (let i = 0; i < 30; i++) {
+      const tasks = fa.generateAllTasks(20, 'mixed');
+      for (const t of tasks) {
+        if (t.nonGrid) continue;
+        assert(!hasCollinearTriple(t.vertices),
+          `template ${t.template} produced collinear vertices: ${JSON.stringify(t.vertices)}`);
+      }
+    }
+  });
+
+  test('every individual template generator avoids collinear triples', () => {
+    const templates = [fa.generateHouse, fa.generateRectTrapezoid, fa.generateRectTriangleSide, fa.generateTrapezoidTriangle];
+    for (const gen of templates) {
+      for (let i = 0; i < 40; i++) {
+        let task = gen();
+        if (!task) continue;
+        // finalizeMixed isn't exported, so run simplifyPolygon manually here
+        // to mirror what the mixed pipeline does
+        task = { ...task, vertices: fa.simplifyPolygon(task.vertices) };
+        assert(!hasCollinearTriple(task.vertices),
+          `${gen.name} produced collinear vertices: ${JSON.stringify(task.vertices)}`);
+      }
+    }
+  });
+
+  test('MIXED_TEMPLATES contains exactly the 4 current templates', () => {
+    assertEq(fa.MIXED_TEMPLATES.length, 4);
+    const names = fa.MIXED_TEMPLATES.map(f => f.name).sort();
+    const expected = ['generateHouse', 'generateRectTrapezoid', 'generateRectTriangleSide', 'generateTrapezoidTriangle'].sort();
+    for (let i = 0; i < expected.length; i++) assertEq(names[i], expected[i]);
   });
 });
 

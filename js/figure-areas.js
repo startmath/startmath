@@ -472,33 +472,29 @@ function generateTrapezoid() {
 //   subCentroids: centroid points of each sub-part (for on-grid labels)
 //   totalArea:    sum of sub-part areas (in grid squares, pre-cm)
 // sub-areas are computed in grid squares; cm scaling is applied at formula time.
+//
+// Every template runs its vertex list through simplifyPolygon so that collinear
+// triples (which would render as a "hint" vertex dot mid-edge, giving away the
+// decomposition) are stripped before the task is shown.
 
-function generateRect() {
-  const w = randInt(2, 7);
-  const h = randInt(2, 7);
-  const x0 = randInt(0, GRID_SIZE - w);
-  const y0 = randInt(0, GRID_SIZE - h);
-  const isSquare = w === h;
+function simplifyPolygon(verts) {
+  const n = verts.length;
+  if (n < 3) return verts;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const prev = verts[(i - 1 + n) % n];
+    const curr = verts[i];
+    const next = verts[(i + 1) % n];
+    const cross = (curr.x - prev.x) * (next.y - curr.y) - (curr.y - prev.y) * (next.x - curr.x);
+    if (cross !== 0) out.push(curr);
+  }
+  return out;
+}
 
-  return {
-    figure: 'mixed',
-    template: 'rect',
-    vertices: [
-      { x: x0, y: y0 },
-      { x: x0 + w, y: y0 },
-      { x: x0 + w, y: y0 + h },
-      { x: x0, y: y0 + h }
-    ],
-    subParts: [{
-      label: isSquare ? 'Квадрат' : 'Правоъгълник',
-      dims: isSquare ? [w] : [w, h],
-      formulaType: isSquare ? 'square' : 'rect',
-      area: w * h
-    }],
-    sharedEdges: [],
-    subCentroids: [{ x: x0 + w / 2, y: y0 + h / 2 }],
-    totalArea: w * h
-  };
+function finalizeMixed(task) {
+  if (!task) return null;
+  task.vertices = simplifyPolygon(task.vertices);
+  return task;
 }
 
 function generateHouse() {
@@ -584,40 +580,53 @@ function generateRectTrapezoid() {
   return null;
 }
 
-function generateLShape() {
+// Trapezoid on the bottom + triangle on top (triangle base = trapezoid top).
+// The shared edge is horizontal between the trapezoid's top and the triangle's
+// bottom; removed from the outer polygon so the student can't see the seam.
+function generateTrapezoidTriangle() {
   for (let attempt = 0; attempt < 100; attempt++) {
-    const w1 = randInt(4, 6);
+    const a = randInt(4, 7);
+    const b = randInt(2, a - 2);
     const h1 = randInt(2, 3);
-    const w2 = randInt(2, w1 - 1);
-    const h2 = randInt(2, 3);
+    const h2 = randInt(2, 4);
     if (h1 + h2 > GRID_SIZE) continue;
+    if (((a + b) * h1) % 2 !== 0) continue;
+    if ((b * h2) % 2 !== 0) continue;
+    // need b even so the apex lands on a lattice point
+    if (b % 2 !== 0) continue;
 
-    const x0 = randInt(0, GRID_SIZE - w1);
+    const diff = a - b;
+    const leftOff = Math.floor(diff / 2);
+    const rightOff = diff - leftOff;
+    if (leftOff === 0 || rightOff === 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - a);
     const y0 = randInt(0, GRID_SIZE - h1 - h2);
+    const apexX = x0 + leftOff + b / 2;
 
     return {
       figure: 'mixed',
-      template: 'lshape',
+      template: 'trapTriangle',
       vertices: [
-        { x: x0, y: y0 },
-        { x: x0 + w1, y: y0 },
-        { x: x0 + w1, y: y0 + h1 },
-        { x: x0 + w2, y: y0 + h1 },
-        { x: x0 + w2, y: y0 + h1 + h2 },
-        { x: x0, y: y0 + h1 + h2 }
+        { x: x0, y: y0 },                             // A: trap BL
+        { x: x0 + a, y: y0 },                         // B: trap BR
+        { x: x0 + a - rightOff, y: y0 + h1 },         // C: trap TR / tri base R
+        { x: apexX, y: y0 + h1 + h2 },                // D: apex
+        { x: x0 + leftOff, y: y0 + h1 }               // E: trap TL / tri base L
       ],
       subParts: [
-        { label: 'Правоъгълник 1', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
-        { label: 'Правоъгълник 2', dims: [w2, h2], formulaType: 'rect', area: w2 * h2 }
+        { label: 'Трапец', dims: [a, b, h1], formulaType: 'trap', area: (a + b) * h1 / 2 },
+        { label: 'Триъгълник', dims: [b, h2], formulaType: 'tri', area: (b * h2) / 2 }
       ],
       sharedEdges: [[
-        { x: x0, y: y0 + h1 }, { x: x0 + w2, y: y0 + h1 }
+        { x: x0 + leftOff, y: y0 + h1 },
+        { x: x0 + a - rightOff, y: y0 + h1 }
       ]],
       subCentroids: [
-        { x: x0 + w1 / 2, y: y0 + h1 / 2 },
-        { x: x0 + w2 / 2, y: y0 + h1 + h2 / 2 }
+        { x: x0 + a / 2, y: y0 + h1 / 2 },
+        { x: apexX, y: y0 + h1 + h2 / 3 }
       ],
-      totalArea: w1 * h1 + w2 * h2
+      totalArea: (a + b) * h1 / 2 + (b * h2) / 2
     };
   }
   return null;
@@ -670,16 +679,20 @@ function generateRectTriangleSide() {
 }
 
 const MIXED_TEMPLATES = [
-  generateRect, generateHouse, generateRectTrapezoid, generateLShape, generateRectTriangleSide
+  generateHouse,
+  generateRectTrapezoid,
+  generateRectTriangleSide,
+  generateTrapezoidTriangle
 ];
 
 function generateMixed() {
   for (let attempt = 0; attempt < 50; attempt++) {
     const gen = MIXED_TEMPLATES[Math.floor(Math.random() * MIXED_TEMPLATES.length)];
-    const task = gen();
+    const task = finalizeMixed(gen());
     if (task) return task;
   }
-  return generateRect();
+  // Last-resort fallback: a guaranteed-valid house
+  return finalizeMixed(generateHouse());
 }
 
 // ===== Task Generation =====
@@ -1338,19 +1351,43 @@ function renderParallelogramSolution(svg, task, correct) {
   drawRightAngleMarker(svg, H, T, A, B, center, color);
 }
 
+// Decides which of the two parallel sides should be labeled `a` and which `b`
+// based on the task's post-transform orientation. Rules:
+//   - horizontal parallel sides → bottom (smaller grid y) = a, top = b
+//   - vertical parallel sides   → left   (smaller grid x) = a, right = b
+function trapezoidOrientedLabels(task) {
+  const { bottomStart, bottomEnd, topStart, topEnd, baseA, baseB } = task;
+  const isHorizontal = bottomStart.y === bottomEnd.y;
+  const bottomPairIsA = isHorizontal
+    ? bottomStart.y < topStart.y
+    : bottomStart.x < topStart.x;
+
+  if (bottomPairIsA) {
+    return {
+      aStart: bottomStart, aEnd: bottomEnd, aLen: baseA,
+      bStart: topStart,    bEnd: topEnd,    bLen: baseB
+    };
+  }
+  return {
+    aStart: topStart,    aEnd: topEnd,    aLen: baseB,
+    bStart: bottomStart, bEnd: bottomEnd, bLen: baseA
+  };
+}
+
 function renderTrapezoidSolution(svg, task, correct) {
   const cm = config.cmPerSquare;
-  const { bottomStart: A, bottomEnd: B, topStart: D, topEnd: C, heightTop: T, heightFoot: H } = task;
-  const aCm = task.baseA * cm;
-  const bCm = task.baseB * cm;
+  const { heightTop: T, heightFoot: H, bottomStart, bottomEnd } = task;
+  const { aStart, aEnd, aLen, bStart, bEnd, bLen } = trapezoidOrientedLabels(task);
+  const aCm = aLen * cm;
+  const bCm = bLen * cm;
   const heightCm = task.height * cm;
   const color = correct ? '#4CAF50' : '#EF5350';
   const center = centroid(task.vertices);
 
-  drawEdgeWithLabel(svg, A, B, `a = ${formatBG(aCm)} cm`, color, center);
-  drawEdgeWithLabel(svg, D, C, `b = ${formatBG(bCm)} cm`, color, center);
-  drawHeightWithLabel(svg, T, H, `h = ${formatBG(heightCm)} cm`, color, !task.heightOnSide, A, B);
-  drawRightAngleMarker(svg, H, T, A, B, center, color);
+  drawEdgeWithLabel(svg, aStart, aEnd, `a = ${formatBG(aCm)} cm`, color, center);
+  drawEdgeWithLabel(svg, bStart, bEnd, `b = ${formatBG(bCm)} cm`, color, center);
+  drawHeightWithLabel(svg, T, H, `h = ${formatBG(heightCm)} cm`, color, !task.heightOnSide, bottomStart, bottomEnd);
+  drawRightAngleMarker(svg, H, T, bottomStart, bottomEnd, center, color);
 }
 
 // ===== Formula HTML =====
@@ -1466,8 +1503,9 @@ function parallelogramFormulaHTML(task, cm, area) {
 }
 
 function trapezoidFormulaHTML(task, cm, area) {
-  const aCm = task.baseA * cm;
-  const bCm = task.baseB * cm;
+  const { aLen, bLen } = trapezoidOrientedLabels(task);
+  const aCm = aLen * cm;
+  const bCm = bLen * cm;
   const hCm = task.height * cm;
   const sum = aCm + bCm;
   return `$$S = \\frac{(a + b) \\;\\text{.}\\; h}{2}$$
@@ -1552,11 +1590,10 @@ const MODULES = {
     typeLabel: (task) => {
       if (task.nonGrid) return 'Смесена фигура (с рамка)';
       const labels = {
-        rect: 'Правоъгълник / квадрат',
         house: 'Правоъгълник + триъгълник',
         rectTrap: 'Правоъгълник + трапец',
-        lshape: 'Г-образна фигура',
-        rectTriSide: 'Правоъгълник + триъгълник'
+        rectTriSide: 'Правоъгълник + триъгълник',
+        trapTriangle: 'Трапец + триъгълник'
       };
       return labels[task.template] || 'Смесена фигура';
     }
