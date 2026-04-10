@@ -274,6 +274,110 @@ function generateParallelogram() {
   };
 }
 
+// Rhombus: parallelogram whose slant side equals the base length.
+// Uses 3-4-5 Pythagorean triples so the side equals 5 exactly.
+function generateRhombus() {
+  const variants = [
+    { base: 5, off: 3, height: 4 },
+    { base: 5, off: -3, height: 4 },
+    { base: 5, off: 4, height: 3 },
+    { base: 5, off: -4, height: 3 }
+  ];
+  const { base, off, height } = variants[Math.floor(Math.random() * variants.length)];
+
+  const xMin = Math.min(0, off);
+  const xMax = Math.max(base, base + off);
+  const x0 = randInt(-xMin, GRID_SIZE - xMax);
+  const y0 = randInt(0, GRID_SIZE - height);
+
+  const A = { x: x0, y: y0 };
+  const B = { x: x0 + base, y: y0 };
+  const C = { x: x0 + base + off, y: y0 + height };
+  const D = { x: x0 + off, y: y0 + height };
+
+  let heightTop, heightFoot;
+  if (off >= 0) {
+    heightTop = D;
+    heightFoot = { x: x0 + off, y: y0 };
+  } else {
+    heightTop = C;
+    heightFoot = { x: x0 + base + off, y: y0 };
+  }
+
+  return {
+    figure: 'parallelogram',
+    isRhombus: true,
+    vertices: [A, B, C, D],
+    base,
+    height,
+    baseStart: A,
+    baseEnd: B,
+    heightTop,
+    heightFoot
+  };
+}
+
+// ===== Non-grid (frame) Generators =====
+
+// Canonical non-grid triangle: v1=(0,y1) on left side, v2=(x2,0) on bottom side,
+// v3=(w,h) at TR corner of its bbox. All three edges are slanted (no axis-aligned sides).
+// Bbox has 3 right-triangle cut-offs at BL, BR, TL corners.
+function generateTriangleNonGrid() {
+  const w = randInt(3, 6);
+  const h = randInt(3, 6);
+  const y1 = randInt(1, h - 1);
+  const x2 = randInt(1, w - 1);
+  const x0 = randInt(0, GRID_SIZE - w);
+  const y0 = randInt(0, GRID_SIZE - h);
+
+  return {
+    figure: 'triangle',
+    nonGrid: true,
+    vertices: [
+      { x: x0, y: y0 + y1 },
+      { x: x0 + x2, y: y0 },
+      { x: x0 + w, y: y0 + h }
+    ]
+  };
+}
+
+// Non-grid parallelogram: u=(a,b), v=(-c,d) — all four vertices lie on distinct
+// bbox sides (none at bbox corners). Bbox has 4 right-triangle cut-offs, 2 of
+// area a*b/2 and 2 of area c*d/2.
+function generateParallelogramNonGrid() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const a = randInt(1, 3);
+    const b = randInt(1, 3);
+    const c = randInt(1, 3);
+    const d = randInt(1, 3);
+    const bboxW = a + c;
+    const bboxH = b + d;
+    if (bboxW < 3 || bboxH < 3) continue;
+    if (bboxW > GRID_SIZE || bboxH > GRID_SIZE) continue;
+
+    const x0 = randInt(0, GRID_SIZE - bboxW);
+    const y0 = randInt(0, GRID_SIZE - bboxH);
+
+    return {
+      figure: 'parallelogram',
+      nonGrid: true,
+      vertices: [
+        { x: x0 + c, y: y0 },             // bottom side
+        { x: x0 + a + c, y: y0 + b },     // right side
+        { x: x0 + a, y: y0 + b + d },     // top side
+        { x: x0, y: y0 + d }              // left side
+      ]
+    };
+  }
+  return {
+    figure: 'parallelogram',
+    nonGrid: true,
+    vertices: [
+      { x: 2, y: 1 }, { x: 5, y: 3 }, { x: 4, y: 6 }, { x: 1, y: 4 }
+    ]
+  };
+}
+
 // ===== Trapezoid Generator =====
 
 function generateTrapezoid() {
@@ -360,12 +464,240 @@ function generateTrapezoid() {
   };
 }
 
+// ===== Mixed / Compound Generators =====
+// Each template returns a task with:
+//   vertices:     outer polygon (without the internal shared edge)
+//   subParts:     [{ label, dims, formulaType, area }] — sub-figure breakdown
+//   sharedEdges:  array of [p1, p2] segments to reveal in the solution
+//   subCentroids: centroid points of each sub-part (for on-grid labels)
+//   totalArea:    sum of sub-part areas (in grid squares, pre-cm)
+// sub-areas are computed in grid squares; cm scaling is applied at formula time.
+
+function generateRect() {
+  const w = randInt(2, 7);
+  const h = randInt(2, 7);
+  const x0 = randInt(0, GRID_SIZE - w);
+  const y0 = randInt(0, GRID_SIZE - h);
+  const isSquare = w === h;
+
+  return {
+    figure: 'mixed',
+    template: 'rect',
+    vertices: [
+      { x: x0, y: y0 },
+      { x: x0 + w, y: y0 },
+      { x: x0 + w, y: y0 + h },
+      { x: x0, y: y0 + h }
+    ],
+    subParts: [{
+      label: isSquare ? 'Квадрат' : 'Правоъгълник',
+      dims: isSquare ? [w] : [w, h],
+      formulaType: isSquare ? 'square' : 'rect',
+      area: w * h
+    }],
+    sharedEdges: [],
+    subCentroids: [{ x: x0 + w / 2, y: y0 + h / 2 }],
+    totalArea: w * h
+  };
+}
+
+function generateHouse() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w = randInt(3, 6);
+    const h1 = randInt(2, 4);
+    const h2 = randInt(2, 4);
+    if (h1 + h2 > GRID_SIZE) continue;
+    if ((w * h2) % 2 !== 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - w);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+    const apexX = x0 + Math.floor(w / 2);
+
+    return {
+      figure: 'mixed',
+      template: 'house',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + w, y: y0 },
+        { x: x0 + w, y: y0 + h1 },
+        { x: apexX, y: y0 + h1 + h2 },
+        { x: x0, y: y0 + h1 }
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [w, h1], formulaType: 'rect', area: w * h1 },
+        { label: 'Триъгълник', dims: [w, h2], formulaType: 'tri', area: (w * h2) / 2 }
+      ],
+      sharedEdges: [[
+        { x: x0, y: y0 + h1 }, { x: x0 + w, y: y0 + h1 }
+      ]],
+      subCentroids: [
+        { x: x0 + w / 2, y: y0 + h1 / 2 },
+        { x: x0 + w / 2, y: y0 + h1 + h2 / 3 }
+      ],
+      totalArea: w * h1 + (w * h2) / 2
+    };
+  }
+  return null;
+}
+
+function generateRectTrapezoid() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w = randInt(4, 6);
+    const h1 = randInt(2, 3);
+    const h2 = randInt(2, 3);
+    const b = randInt(2, w - 1);
+    if (h1 + h2 > GRID_SIZE) continue;
+    if (((w + b) * h2) % 2 !== 0) continue;
+
+    const diff = w - b;
+    const leftOffset = Math.floor(diff / 2);
+    const rightOffset = diff - leftOffset;
+
+    const x0 = randInt(0, GRID_SIZE - w);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    return {
+      figure: 'mixed',
+      template: 'rectTrap',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + w, y: y0 },
+        { x: x0 + w, y: y0 + h1 },
+        { x: x0 + w - rightOffset, y: y0 + h1 + h2 },
+        { x: x0 + leftOffset, y: y0 + h1 + h2 },
+        { x: x0, y: y0 + h1 }
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [w, h1], formulaType: 'rect', area: w * h1 },
+        { label: 'Трапец', dims: [w, b, h2], formulaType: 'trap', area: (w + b) * h2 / 2 }
+      ],
+      sharedEdges: [[
+        { x: x0, y: y0 + h1 }, { x: x0 + w, y: y0 + h1 }
+      ]],
+      subCentroids: [
+        { x: x0 + w / 2, y: y0 + h1 / 2 },
+        { x: x0 + w / 2, y: y0 + h1 + h2 / 2 }
+      ],
+      totalArea: w * h1 + (w + b) * h2 / 2
+    };
+  }
+  return null;
+}
+
+function generateLShape() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w1 = randInt(4, 6);
+    const h1 = randInt(2, 3);
+    const w2 = randInt(2, w1 - 1);
+    const h2 = randInt(2, 3);
+    if (h1 + h2 > GRID_SIZE) continue;
+
+    const x0 = randInt(0, GRID_SIZE - w1);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    return {
+      figure: 'mixed',
+      template: 'lshape',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + w1, y: y0 },
+        { x: x0 + w1, y: y0 + h1 },
+        { x: x0 + w2, y: y0 + h1 },
+        { x: x0 + w2, y: y0 + h1 + h2 },
+        { x: x0, y: y0 + h1 + h2 }
+      ],
+      subParts: [
+        { label: 'Правоъгълник 1', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
+        { label: 'Правоъгълник 2', dims: [w2, h2], formulaType: 'rect', area: w2 * h2 }
+      ],
+      sharedEdges: [[
+        { x: x0, y: y0 + h1 }, { x: x0 + w2, y: y0 + h1 }
+      ]],
+      subCentroids: [
+        { x: x0 + w1 / 2, y: y0 + h1 / 2 },
+        { x: x0 + w2 / 2, y: y0 + h1 + h2 / 2 }
+      ],
+      totalArea: w1 * h1 + w2 * h2
+    };
+  }
+  return null;
+}
+
+function generateRectTriangleSide() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const wR = randInt(3, 5);
+    const hR = randInt(3, 5);
+    const wT = randInt(2, 4);
+    if (wR + wT > GRID_SIZE) continue;
+    if ((wT * hR) % 2 !== 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - wR - wT);
+    const y0 = randInt(0, GRID_SIZE - hR);
+    const apexOnTop = Math.random() < 0.5;
+    const apexY = apexOnTop ? y0 + hR : y0;
+
+    return {
+      figure: 'mixed',
+      template: 'rectTriSide',
+      vertices: apexOnTop ? [
+        { x: x0, y: y0 },
+        { x: x0 + wR, y: y0 },
+        { x: x0 + wR + wT, y: y0 + hR },
+        { x: x0 + wR, y: y0 + hR },
+        { x: x0, y: y0 + hR }
+      ] : [
+        { x: x0, y: y0 },
+        { x: x0 + wR, y: y0 },
+        { x: x0 + wR + wT, y: y0 },
+        { x: x0 + wR, y: y0 + hR },
+        { x: x0, y: y0 + hR }
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [wR, hR], formulaType: 'rect', area: wR * hR },
+        { label: 'Триъгълник', dims: [hR, wT], formulaType: 'tri', area: (wT * hR) / 2 }
+      ],
+      sharedEdges: [[
+        { x: x0 + wR, y: y0 }, { x: x0 + wR, y: y0 + hR }
+      ]],
+      subCentroids: [
+        { x: x0 + wR / 2, y: y0 + hR / 2 },
+        { x: x0 + wR + wT / 3, y: apexOnTop ? y0 + hR - hR / 3 : y0 + hR / 3 }
+      ],
+      totalArea: wR * hR + (wT * hR) / 2
+    };
+  }
+  return null;
+}
+
+const MIXED_TEMPLATES = [
+  generateRect, generateHouse, generateRectTrapezoid, generateLShape, generateRectTriangleSide
+];
+
+function generateMixed() {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const gen = MIXED_TEMPLATES[Math.floor(Math.random() * MIXED_TEMPLATES.length)];
+    const task = gen();
+    if (task) return task;
+  }
+  return generateRect();
+}
+
 // ===== Task Generation =====
 
 function isPoint(v) {
   return v !== null && typeof v === 'object'
     && typeof v.x === 'number' && typeof v.y === 'number'
     && !Array.isArray(v);
+}
+
+// Recursively transform every point-like value inside a structure. Numbers,
+// strings, non-point objects, and arrays of non-points pass through unchanged.
+// This lets task fields like `vertices`, `subCentroids`, and nested
+// `sharedEdges` (array of [p1,p2] pairs) all be transformed uniformly.
+function transformDeep(v, fn) {
+  if (isPoint(v)) return fn(v);
+  if (Array.isArray(v)) return v.map(item => transformDeep(item, fn));
+  return v;
 }
 
 function transformFigure(task) {
@@ -384,11 +716,7 @@ function transformFigure(task) {
 
   const out = { ...task };
   for (const [k, v] of Object.entries(task)) {
-    if (Array.isArray(v) && v.length > 0 && v.every(isPoint)) {
-      out[k] = v.map(fn);
-    } else if (isPoint(v)) {
-      out[k] = fn(v);
-    }
+    out[k] = transformDeep(v, fn);
   }
   return out;
 }
@@ -398,14 +726,43 @@ function generateAllTasks(count, moduleId) {
   const gens = mod.generators;
   const all = [];
 
-  if (mod.distributeEvenly) {
-    const per = Math.floor(count / gens.length);
-    const rem = count % gens.length;
-    for (let i = 0; i < gens.length; i++) {
+  if (moduleId === 'triangle') {
+    // Distribute evenly across 3 subtypes, then swap ~25% of slots for non-grid
+    const per = Math.floor(count / 3);
+    const rem = count % 3;
+    const baseGens = [generateRightTriangle, generateAcuteTriangle, generateObtuseTriangle];
+    for (let i = 0; i < 3; i++) {
       const n = per + (i < rem ? 1 : 0);
       for (let j = 0; j < n; j++) {
-        all.push(transformFigure(gens[i]()));
+        const useFrame = Math.random() < 0.25;
+        all.push(transformFigure(useFrame ? generateTriangleNonGrid() : baseGens[i]()));
       }
+    }
+  } else if (moduleId === 'parallelogram') {
+    // Reserve one rhombus slot when count > 2, the rest mix parallelograms + frame variants
+    const rhombusCount = count > 2 ? 1 : 0;
+    for (let i = 0; i < rhombusCount; i++) {
+      all.push(transformFigure(generateRhombus()));
+    }
+    for (let i = 0; i < count - rhombusCount; i++) {
+      const useFrame = Math.random() < 0.25;
+      all.push(transformFigure(useFrame ? generateParallelogramNonGrid() : generateParallelogram()));
+    }
+  } else if (moduleId === 'mixed') {
+    // Mix of compound grid-aligned figures + occasional non-grid frame variants
+    for (let i = 0; i < count; i++) {
+      const r = Math.random();
+      let task;
+      if (r < 0.15) {
+        task = generateTriangleNonGrid();
+        task.figure = 'mixed';
+      } else if (r < 0.30) {
+        task = generateParallelogramNonGrid();
+        task.figure = 'mixed';
+      } else {
+        task = generateMixed();
+      }
+      all.push(transformFigure(task));
     }
   } else {
     for (let i = 0; i < count; i++) {
@@ -540,14 +897,29 @@ function centroid(verts) {
   return { x: cx, y: cy };
 }
 
-// Clamp SVG coordinates to keep labels inside the viewBox
-function clampX(x) { return Math.max(8, Math.min(SVG_SIZE - 8, x)); }
-function clampY(y) { return Math.max(14, Math.min(SVG_SIZE - 4, y)); }
+// Grid boundaries in SVG coordinates (y is flipped: py(GRID_SIZE) is top)
+const GRID_LEFT = px(0);
+const GRID_RIGHT = px(GRID_SIZE);
+const GRID_TOP = py(GRID_SIZE);
+const GRID_BOTTOM = py(0);
+
+// Clamp label coordinates to stay inside the grid square
+function clampX(x) { return Math.max(GRID_LEFT + 4, Math.min(GRID_RIGHT - 4, x)); }
+function clampY(y) { return Math.max(GRID_TOP + 10, Math.min(GRID_BOTTOM - 4, y)); }
 
 // ===== Figure-specific Rendering =====
 
+const VERTEX_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
 function renderTriangleFigure(svg, task) {
   renderPolygon(svg, task.vertices, ['A', 'B', 'C']);
+  const c = centroid(task.vertices);
+  renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
+}
+
+function renderMixedFigure(svg, task) {
+  const labels = VERTEX_LABELS.slice(0, task.vertices.length);
+  renderPolygon(svg, task.vertices, labels);
   const c = centroid(task.vertices);
   renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
 }
@@ -567,7 +939,8 @@ function renderTrapezoidFigure(svg, task) {
 // ===== Solution Rendering =====
 
 // Draws a colored segment along an edge of the polygon with a label.
-// `centerPt` is used to place the label on the side opposite the figure center.
+// `centerPt` is used to place the label on the side opposite the figure center;
+// if that side would escape the grid, flip to the inside of the shape instead.
 function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
   svg.appendChild(svgEl('line', {
     x1: px(start.x), y1: py(start.y),
@@ -586,11 +959,10 @@ function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
     const midPX = (px(start.x) + px(end.x)) / 2;
     const edgePY = py(start.y);
     const centerPY = py(centerPt.y);
-    // Place label on the side opposite the center
-    let y = centerPY < edgePY ? edgePY + 14 : edgePY - 6;
-    // If off-canvas, flip
-    if (y > SVG_SIZE - 4) y = edgePY - 6;
-    if (y < 14) y = edgePY + 14;
+    const outsideY = centerPY < edgePY ? edgePY + 14 : edgePY - 6;
+    const insideY = centerPY < edgePY ? edgePY - 6 : edgePY + 14;
+    let y = outsideY;
+    if (outsideY < GRID_TOP + 10 || outsideY > GRID_BOTTOM - 4) y = insideY;
     label.setAttribute('x', clampX(midPX));
     label.setAttribute('y', clampY(y));
     label.setAttribute('text-anchor', 'middle');
@@ -598,8 +970,12 @@ function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
     const midPY = (py(start.y) + py(end.y)) / 2;
     const edgePX = px(start.x);
     const centerPX = px(centerPt.x);
-    const goRight = centerPX < edgePX;
-    const x = goRight ? edgePX + 10 : edgePX - 10;
+    let goRight = centerPX < edgePX;
+    let x = goRight ? edgePX + 10 : edgePX - 10;
+    if (x < GRID_LEFT + 4 || x > GRID_RIGHT - 4) {
+      goRight = !goRight;
+      x = goRight ? edgePX + 10 : edgePX - 10;
+    }
     label.setAttribute('x', clampX(x));
     label.setAttribute('y', clampY(midPY + 4));
     label.setAttribute('text-anchor', goRight ? 'start' : 'end');
@@ -632,15 +1008,23 @@ function drawHeightWithLabel(svg, top, foot, labelText, color, dashed, baseStart
 
   if (baseHoriz) {
     const hMidPy = (py(top.y) + py(foot.y)) / 2;
-    const goRight = px(top.x) < px(5);
-    const hLabelX = goRight ? px(top.x) + 12 : px(top.x) - 12;
+    let goRight = px(top.x) < px(5);
+    let hLabelX = goRight ? px(top.x) + 12 : px(top.x) - 12;
+    if (hLabelX < GRID_LEFT + 4 || hLabelX > GRID_RIGHT - 4) {
+      goRight = !goRight;
+      hLabelX = goRight ? px(top.x) + 12 : px(top.x) - 12;
+    }
     hl.setAttribute('x', clampX(hLabelX));
     hl.setAttribute('y', clampY(hMidPy + 4));
     hl.setAttribute('text-anchor', goRight ? 'start' : 'end');
   } else {
     const hMidPx = (px(top.x) + px(foot.x)) / 2;
-    const goBelow = py(top.y) > py(5);
-    const hLabelY = goBelow ? py(top.y) + 16 : py(top.y) - 8;
+    let goBelow = py(top.y) > py(5);
+    let hLabelY = goBelow ? py(top.y) + 16 : py(top.y) - 8;
+    if (hLabelY < GRID_TOP + 10 || hLabelY > GRID_BOTTOM - 4) {
+      goBelow = !goBelow;
+      hLabelY = goBelow ? py(top.y) + 16 : py(top.y) - 8;
+    }
     hl.setAttribute('x', clampX(hMidPx));
     hl.setAttribute('y', clampY(hLabelY));
     hl.setAttribute('text-anchor', 'middle');
@@ -681,6 +1065,143 @@ function drawRightAngleMarker(svg, foot, top, baseStart, baseEnd, shapeCenter, c
   }));
 }
 
+// ===== Frame (non-grid) helpers =====
+
+// Shoelace area for any simple polygon given as a vertex list
+function shoelace(verts) {
+  let sum = 0;
+  for (let i = 0; i < verts.length; i++) {
+    const j = (i + 1) % verts.length;
+    sum += verts[i].x * verts[j].y - verts[j].x * verts[i].y;
+  }
+  return Math.abs(sum) / 2;
+}
+
+// Decompose the bbox of the polygon into cut-off right-triangle pieces. For every
+// bbox corner not already covered by a polygon vertex, find the two polygon
+// vertices that lie on the adjacent bbox sides and build the right-triangle piece.
+function decomposeBBoxFrame(vertices) {
+  const xs = vertices.map(v => v.x);
+  const ys = vertices.map(v => v.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  const bboxCorners = [
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY }
+  ];
+
+  const pieces = [];
+  for (const corner of bboxCorners) {
+    if (vertices.some(v => v.x === corner.x && v.y === corner.y)) continue;
+
+    const onVert = vertices.find(v => v.x === corner.x);
+    const onHoriz = vertices.find(v => v.y === corner.y);
+    if (!onVert || !onHoriz) continue;
+
+    const legV = Math.abs(onVert.y - corner.y);
+    const legH = Math.abs(onHoriz.x - corner.x);
+    pieces.push({
+      corner,
+      pV: onVert,
+      pH: onHoriz,
+      legV,
+      legH,
+      area: (legV * legH) / 2
+    });
+  }
+
+  return {
+    bbox: { minX, minY, maxX, maxY },
+    bboxWidth: maxX - minX,
+    bboxHeight: maxY - minY,
+    bboxArea: (maxX - minX) * (maxY - minY),
+    pieces
+  };
+}
+
+// Renders the red bbox frame, re-outlines the figure in the answer color,
+// and places a small red label with each cut-off piece's area inside the piece.
+function renderFrameSolution(svg, task, correct) {
+  const cm = config.cmPerSquare;
+  const color = correct ? '#4CAF50' : '#EF5350';
+  const decomp = decomposeBBoxFrame(task.vertices);
+
+  const frameX = px(decomp.bbox.minX);
+  const frameY = py(decomp.bbox.maxY);
+  const frameW = decomp.bboxWidth * CELL_PX;
+  const frameH = decomp.bboxHeight * CELL_PX;
+  svg.appendChild(svgEl('rect', {
+    x: frameX, y: frameY, width: frameW, height: frameH,
+    fill: 'none', stroke: '#d32f2f', 'stroke-width': 2.5,
+    'stroke-dasharray': '6,3'
+  }));
+
+  // Draw the dashed legs of each cut-off piece along the bbox sides so the
+  // pieces are visually delimited, and place the area label inside each piece.
+  decomp.pieces.forEach((piece, idx) => {
+    const hypotenuse = svgEl('line', {
+      x1: px(piece.pV.x), y1: py(piece.pV.y),
+      x2: px(piece.pH.x), y2: py(piece.pH.y),
+      stroke: '#d32f2f', 'stroke-width': 1.5,
+      'stroke-dasharray': '4,3', 'stroke-linecap': 'round'
+    });
+    svg.appendChild(hypotenuse);
+
+    const centroidX = (piece.corner.x + piece.pV.x + piece.pH.x) / 3;
+    const centroidY = (piece.corner.y + piece.pV.y + piece.pH.y) / 3;
+    const label = svgEl('text', {
+      x: px(centroidX), y: py(centroidY) + 4,
+      'text-anchor': 'middle',
+      'font-size': 11, 'font-weight': 'bold',
+      fill: '#d32f2f', 'font-family': 'Nunito, sans-serif'
+    });
+    label.textContent = `S${toSubscript(idx + 1)}`;
+    svg.appendChild(label);
+  });
+
+  // Re-outline the figure in the answer color
+  const points = task.vertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points,
+    fill: 'none',
+    stroke: color,
+    'stroke-width': 3,
+    'stroke-linejoin': 'round'
+  }));
+}
+
+function toSubscript(n) {
+  const subs = ['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'];
+  return String(n).split('').map(c => subs[+c] || c).join('');
+}
+
+function frameFormulaHTML(task, cm, area) {
+  const decomp = decomposeBBoxFrame(task.vertices);
+  const frameWcm = decomp.bboxWidth * cm;
+  const frameHcm = decomp.bboxHeight * cm;
+  const frameAreaCm = decomp.bboxArea * cm * cm;
+
+  const piecesHTML = decomp.pieces.map((p, i) => {
+    const legHcm = p.legH * cm;
+    const legVcm = p.legV * cm;
+    const pCm = p.area * cm * cm;
+    return `$$S_${i + 1} = \\frac{${formatBG(legHcm)} \\;\\text{.}\\; ${formatBG(legVcm)}}{2} = ${formatBG(pCm)} \\text{ cm}^2$$`;
+  }).join('');
+
+  const totalCutoff = decomp.pieces.reduce((s, p) => s + p.area, 0) * cm * cm;
+  const cutoffSum = decomp.pieces.map((_, i) => `S_${i + 1}`).join(' + ');
+
+  return `
+    $$S_{рамка} = ${formatBG(frameWcm)} \\;\\text{.}\\; ${formatBG(frameHcm)} = ${formatBG(frameAreaCm)} \\text{ cm}^2$$
+    ${piecesHTML}
+    $$S_{отрязано} = ${cutoffSum} = ${formatBG(totalCutoff)} \\text{ cm}^2$$
+    $$S = S_{рамка} - S_{отрязано} = ${formatBG(frameAreaCm)} - ${formatBG(totalCutoff)} = ${formatBG(area)} \\text{ cm}^2$$
+  `;
+}
+
 function renderTriangleSolution(svg, task, correct) {
   const cm = config.cmPerSquare;
   const { baseStart: A, baseEnd: B, apex: C, heightFoot: H } = task;
@@ -703,16 +1224,24 @@ function renderTriangleSolution(svg, task, correct) {
     fill: color, 'font-family': 'Nunito, sans-serif'
   });
   bl.textContent = `a = ${formatBG(baseCm)} cm`;
+  const triCenterPY = py((A.y + B.y + C.y) / 3);
+  const triCenterPX = px((A.x + B.x + C.x) / 3);
   if (horiz) {
     bl.setAttribute('x', clampX((px(A.x) + px(B.x)) / 2));
-    const belowY = py(A.y) + 14;
-    const aboveY = py(A.y) - 6;
-    bl.setAttribute('y', clampY(belowY > SVG_SIZE - 10 ? aboveY : belowY));
+    const outsideY = triCenterPY < py(A.y) ? py(A.y) + 14 : py(A.y) - 6;
+    const insideY = triCenterPY < py(A.y) ? py(A.y) - 6 : py(A.y) + 14;
+    let y = outsideY;
+    if (outsideY < GRID_TOP + 10 || outsideY > GRID_BOTTOM - 4) y = insideY;
+    bl.setAttribute('y', clampY(y));
     bl.setAttribute('text-anchor', 'middle');
   } else {
     const midY = (py(A.y) + py(B.y)) / 2;
-    const goRight = px(A.x) < px(5);
-    const labelX = goRight ? px(A.x) + 10 : px(A.x) - 10;
+    let goRight = triCenterPX < px(A.x);
+    let labelX = goRight ? px(A.x) + 10 : px(A.x) - 10;
+    if (labelX < GRID_LEFT + 4 || labelX > GRID_RIGHT - 4) {
+      goRight = !goRight;
+      labelX = goRight ? px(A.x) + 10 : px(A.x) - 10;
+    }
     bl.setAttribute('x', clampX(labelX));
     bl.setAttribute('y', clampY(midY + 4));
     bl.setAttribute('text-anchor', goRight ? 'start' : 'end');
@@ -753,15 +1282,23 @@ function renderTriangleSolution(svg, task, correct) {
   hl.textContent = `${heightLabel} = ${formatBG(heightCm)} cm`;
   if (horiz) {
     const hMidPy = (py(C.y) + py(H.y)) / 2;
-    const goRight = px(C.x) < px(5);
-    const hLabelX = goRight ? px(C.x) + 12 : px(C.x) - 12;
+    let goRight = px(C.x) < px(5);
+    let hLabelX = goRight ? px(C.x) + 12 : px(C.x) - 12;
+    if (hLabelX < GRID_LEFT + 4 || hLabelX > GRID_RIGHT - 4) {
+      goRight = !goRight;
+      hLabelX = goRight ? px(C.x) + 12 : px(C.x) - 12;
+    }
     hl.setAttribute('x', clampX(hLabelX));
     hl.setAttribute('y', clampY(hMidPy + 4));
     hl.setAttribute('text-anchor', goRight ? 'start' : 'end');
   } else {
     const hMidPx = (px(C.x) + px(H.x)) / 2;
-    const goBelow = py(C.y) > py(5);
-    const hLabelY = goBelow ? py(C.y) + 16 : py(C.y) - 8;
+    let goBelow = py(C.y) > py(5);
+    let hLabelY = goBelow ? py(C.y) + 16 : py(C.y) - 8;
+    if (hLabelY < GRID_TOP + 10 || hLabelY > GRID_BOTTOM - 4) {
+      goBelow = !goBelow;
+      hLabelY = goBelow ? py(C.y) + 16 : py(C.y) - 8;
+    }
     hl.setAttribute('x', clampX(hMidPx));
     hl.setAttribute('y', clampY(hLabelY));
     hl.setAttribute('text-anchor', 'middle');
@@ -798,7 +1335,7 @@ function renderParallelogramSolution(svg, task, correct) {
   const center = centroid(task.vertices);
 
   drawEdgeWithLabel(svg, A, B, `a = ${formatBG(baseCm)} cm`, color, center);
-  drawHeightWithLabel(svg, T, H, `h = ${formatBG(heightCm)} cm`, color, true, A, B);
+  drawHeightWithLabel(svg, T, H, `hₐ = ${formatBG(heightCm)} cm`, color, true, A, B);
   drawRightAngleMarker(svg, H, T, A, B, center, color);
 }
 
@@ -819,6 +1356,97 @@ function renderTrapezoidSolution(svg, task, correct) {
 
 // ===== Formula HTML =====
 
+function renderMixedSolution(svg, task, correct) {
+  const color = correct ? '#4CAF50' : '#EF5350';
+
+  // Reveal shared edges as dashed purple
+  for (const edge of task.sharedEdges) {
+    const [p1, p2] = edge;
+    svg.appendChild(svgEl('line', {
+      x1: px(p1.x), y1: py(p1.y),
+      x2: px(p2.x), y2: py(p2.y),
+      stroke: '#7C5CBF', 'stroke-width': 2,
+      'stroke-dasharray': '6,4', 'stroke-linecap': 'round'
+    }));
+  }
+
+  // Re-outline the compound shape in the answer color
+  const points = task.vertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points,
+    fill: 'none',
+    stroke: color,
+    'stroke-width': 3,
+    'stroke-linejoin': 'round'
+  }));
+
+  // Place S₁, S₂ labels at each sub-part centroid
+  if (task.subCentroids) {
+    task.subCentroids.forEach((c, i) => {
+      const label = svgEl('text', {
+        x: px(c.x), y: py(c.y) + 5,
+        'text-anchor': 'middle',
+        'font-size': 13, 'font-weight': 'bold',
+        fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif'
+      });
+      label.textContent = `S${toSubscript(i + 1)}`;
+      svg.appendChild(label);
+    });
+  }
+}
+
+function subFormulaHTML(part, idx, cm) {
+  const sub = `S_${idx}`;
+  if (part.formulaType === 'square') {
+    const [a] = part.dims;
+    const aCm = a * cm;
+    const area = part.area * cm * cm;
+    return `$$${sub} = ${formatBG(aCm)}^2 = ${formatBG(area)} \\text{ cm}^2 \\quad \\text{(${part.label})}$$`;
+  }
+  if (part.formulaType === 'rect') {
+    const [a, b] = part.dims;
+    const aCm = a * cm;
+    const bCm = b * cm;
+    const area = part.area * cm * cm;
+    return `$$${sub} = ${formatBG(aCm)} \\;\\text{.}\\; ${formatBG(bCm)} = ${formatBG(area)} \\text{ cm}^2 \\quad \\text{(${part.label})}$$`;
+  }
+  if (part.formulaType === 'tri') {
+    const [a, h] = part.dims;
+    const aCm = a * cm;
+    const hCm = h * cm;
+    const area = part.area * cm * cm;
+    return `$$${sub} = \\frac{${formatBG(aCm)} \\;\\text{.}\\; ${formatBG(hCm)}}{2} = ${formatBG(area)} \\text{ cm}^2 \\quad \\text{(${part.label})}$$`;
+  }
+  if (part.formulaType === 'trap') {
+    const [a, b, h] = part.dims;
+    const aCm = a * cm;
+    const bCm = b * cm;
+    const hCm = h * cm;
+    const area = part.area * cm * cm;
+    return `$$${sub} = \\frac{(${formatBG(aCm)} + ${formatBG(bCm)}) \\;\\text{.}\\; ${formatBG(hCm)}}{2} = ${formatBG(area)} \\text{ cm}^2 \\quad \\text{(${part.label})}$$`;
+  }
+  if (part.formulaType === 'para') {
+    const [a, h] = part.dims;
+    const aCm = a * cm;
+    const hCm = h * cm;
+    const area = part.area * cm * cm;
+    return `$$${sub} = ${formatBG(aCm)} \\;\\text{.}\\; ${formatBG(hCm)} = ${formatBG(area)} \\text{ cm}^2 \\quad \\text{(${part.label})}$$`;
+  }
+  return '';
+}
+
+function mixedFormulaHTML(task, cm, area) {
+  const subs = task.subParts.map((p, i) => subFormulaHTML(p, i + 1, cm)).join('');
+  const sumExpr = task.subParts.map((_, i) => `S_${i + 1}`).join(' + ');
+  if (task.subParts.length === 1) {
+    return subs;
+  }
+  return `
+    ${subs}
+    $$S = ${sumExpr} = ${formatBG(area)} \\text{ cm}^2$$
+  `;
+}
+
 function triangleFormulaHTML(task, cm, area) {
   const baseCm = task.base * cm;
   const heightCm = task.height * cm;
@@ -833,7 +1461,7 @@ function triangleFormulaHTML(task, cm, area) {
 function parallelogramFormulaHTML(task, cm, area) {
   const baseCm = task.base * cm;
   const heightCm = task.height * cm;
-  return `$$S = a \\;\\text{.}\\; h$$
+  return `$$S = a \\;\\text{.}\\; h_a$$
           $$S = ${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)} = ${formatBG(area)} \\text{ cm}^2$$`;
 }
 
@@ -857,23 +1485,41 @@ const MODULES = {
     hasSubtypeBreakdown: true,
     typeNames: { right: 'Правоъгълен', acute: 'Остроъгълен', obtuse: 'Тъпоъгълен' },
     breakdownTitle: 'Резултати по вид триъгълник',
-    computeArea: (task, cm) => (task.base * cm * task.height * cm) / 2,
+    computeArea: (task, cm) => task.nonGrid
+      ? shoelace(task.vertices) * cm * cm
+      : (task.base * cm * task.height * cm) / 2,
     renderFigure: renderTriangleFigure,
-    renderSolution: renderTriangleSolution,
-    formulaHTML: triangleFormulaHTML,
-    typeLabel: (task) => `${task.typeBG} триъгълник`
+    renderSolution: (svg, task, correct) => task.nonGrid
+      ? renderFrameSolution(svg, task, correct)
+      : renderTriangleSolution(svg, task, correct),
+    formulaHTML: (task, cm, area) => task.nonGrid
+      ? frameFormulaHTML(task, cm, area)
+      : triangleFormulaHTML(task, cm, area),
+    typeLabel: (task) => task.nonGrid
+      ? 'Триъгълник (с рамка)'
+      : `${task.typeBG} триъгълник`
   },
   parallelogram: {
     label: 'Успоредник',
     titlePlural: 'Лица на успоредници',
-    generators: [generateParallelogram],
+    generators: [generateParallelogram, generateRhombus],
     distributeEvenly: false,
     hasSubtypeBreakdown: false,
-    computeArea: (task, cm) => task.base * cm * task.height * cm,
+    computeArea: (task, cm) => task.nonGrid
+      ? shoelace(task.vertices) * cm * cm
+      : task.base * cm * task.height * cm,
     renderFigure: renderParallelogramFigure,
-    renderSolution: renderParallelogramSolution,
-    formulaHTML: parallelogramFormulaHTML,
-    typeLabel: () => 'Успоредник'
+    renderSolution: (svg, task, correct) => task.nonGrid
+      ? renderFrameSolution(svg, task, correct)
+      : renderParallelogramSolution(svg, task, correct),
+    formulaHTML: (task, cm, area) => task.nonGrid
+      ? frameFormulaHTML(task, cm, area)
+      : parallelogramFormulaHTML(task, cm, area),
+    typeLabel: (task) => {
+      if (task.nonGrid) return 'Успоредник (с рамка)';
+      if (task.isRhombus) return 'Ромб';
+      return 'Успоредник';
+    }
   },
   trapezoid: {
     label: 'Трапец',
@@ -886,6 +1532,34 @@ const MODULES = {
     renderSolution: renderTrapezoidSolution,
     formulaHTML: trapezoidFormulaHTML,
     typeLabel: () => 'Трапец'
+  },
+  mixed: {
+    label: 'Смесени фигури',
+    titlePlural: 'Лица на смесени фигури',
+    generators: [generateMixed],
+    distributeEvenly: false,
+    hasSubtypeBreakdown: false,
+    computeArea: (task, cm) => task.nonGrid
+      ? shoelace(task.vertices) * cm * cm
+      : task.totalArea * cm * cm,
+    renderFigure: renderMixedFigure,
+    renderSolution: (svg, task, correct) => task.nonGrid
+      ? renderFrameSolution(svg, task, correct)
+      : renderMixedSolution(svg, task, correct),
+    formulaHTML: (task, cm, area) => task.nonGrid
+      ? frameFormulaHTML(task, cm, area)
+      : mixedFormulaHTML(task, cm, area),
+    typeLabel: (task) => {
+      if (task.nonGrid) return 'Смесена фигура (с рамка)';
+      const labels = {
+        rect: 'Правоъгълник / квадрат',
+        house: 'Правоъгълник + триъгълник',
+        rectTrap: 'Правоъгълник + трапец',
+        lshape: 'Г-образна фигура',
+        rectTriSide: 'Правоъгълник + триъгълник'
+      };
+      return labels[task.template] || 'Смесена фигура';
+    }
   }
 };
 
@@ -913,6 +1587,7 @@ function showSettingsScreen() {
             <option value="triangle">Триъгълник</option>
             <option value="parallelogram">Успоредник</option>
             <option value="trapezoid">Трапец</option>
+            <option value="mixed">Смесени фигури</option>
           </select>
         </div>
 
@@ -1178,7 +1853,7 @@ function showScoreScreen() {
       </div>
       <div class="score-actions">
         <button class="btn btn-primary" id="retry-btn">Опитай отново</button>
-        <button class="btn btn-outline" id="settings-btn">Нови настройки</button>
+        <button class="btn btn-outline" id="settings-btn">Промени избора</button>
       </div>
       ${breakdownHTML}
     </div>
