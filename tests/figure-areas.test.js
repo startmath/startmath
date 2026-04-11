@@ -44,7 +44,7 @@ const loader = new Function(src + `
     mixedFormulaHTML, frameFormulaHTML,
     trapezoidOrientedLabels, transformDeep,
     signedArea, toCounterClockwise,
-    isValidAnswerInput, pickBaseLabel
+    isValidAnswerInput, triangleBaseLetter
   };
 `);
 const fa = loader();
@@ -186,22 +186,26 @@ section('triangle module', () => {
     assert(/a.*b/.test(html) && !/h_a/.test(html), 'right triangle should use a and b, not h_a');
   });
 
-  test('non-right triangle formula uses h_{baseLabel}', () => {
+  test('non-right triangle formula uses h_{letter} from apex position', () => {
     for (let i = 0; i < 30; i++) {
-      const t = fa.generateAcuteTriangle();
-      assert(['a', 'b', 'c'].includes(t.baseLabel), `baseLabel should be a/b/c, got ${t.baseLabel}`);
+      const base = fa.generateAcuteTriangle();
+      const t = fa.transformFigure(base);
+      const letter = fa.triangleBaseLetter(t);
+      assert(['a', 'b', 'c'].includes(letter));
       const html = fa.triangleFormulaHTML(t, 1, 1);
-      const re = new RegExp(`h_${t.baseLabel}`);
-      assert(re.test(html), `formula should contain h_${t.baseLabel}: ${html}`);
+      const re = new RegExp(`h_${letter}`);
+      assert(re.test(html), `formula should contain h_${letter}: ${html}`);
     }
   });
 
-  test('obtuse triangle formula also uses the chosen base letter', () => {
+  test('obtuse triangle formula uses the apex-driven letter', () => {
     for (let i = 0; i < 30; i++) {
-      const t = fa.generateObtuseTriangle();
-      assert(['a', 'b', 'c'].includes(t.baseLabel));
+      const base = fa.generateObtuseTriangle();
+      const t = fa.transformFigure(base);
+      const letter = fa.triangleBaseLetter(t);
+      assert(['a', 'b', 'c'].includes(letter));
       const html = fa.triangleFormulaHTML(t, 1, 1);
-      const re = new RegExp(`h_${t.baseLabel}`);
+      const re = new RegExp(`h_${letter}`);
       assert(re.test(html));
     }
   });
@@ -554,47 +558,12 @@ section('frame decomposition', () => {
   });
 });
 
-section('trapezoid a/b orientation labeling', () => {
-  function isCollinear(p, q) { return p.x === q.x || p.y === q.y; }
-
-  test('across every transform, a is bottom (horizontal) or right (vertical)', () => {
-    // Generate a bunch of trapezoids, transform each through all 8 transforms,
-    // and verify the oriented labels pick the "bottom/right" side as `a`.
-    for (let i = 0; i < 20; i++) {
-      const base = fa.generateTrapezoid();
-      for (let k = 0; k < 20; k++) {
-        const t = fa.transformFigure(base);
-        const { aStart, aEnd, bStart, bEnd } = fa.trapezoidOrientedLabels(t);
-        const horizontal = aStart.y === aEnd.y;
-        if (horizontal) {
-          assert(bStart.y === bEnd.y, 'both parallel pairs must share orientation');
-          assert(aStart.y < bStart.y,
-            `horizontal trapezoid: a should be bottom (lower y). a.y=${aStart.y} b.y=${bStart.y}`);
-        } else {
-          assert(aStart.x === aEnd.x && bStart.x === bEnd.x, 'vertical pairs expected');
-          assert(aStart.x > bStart.x,
-            `vertical trapezoid: a should be right (larger x). a.x=${aStart.x} b.x=${bStart.x}`);
-        }
-      }
-    }
-  });
-
-  test('a and b lengths still sum to canonical baseA + baseB', () => {
+section('trapezoid oriented labels', () => {
+  test('a and b lengths sum to canonical baseA + baseB', () => {
     for (let i = 0; i < 20; i++) {
       const t = fa.transformFigure(fa.generateTrapezoid());
       const { aLen, bLen } = fa.trapezoidOrientedLabels(t);
       assertEq(aLen + bLen, t.baseA + t.baseB);
-    }
-  });
-
-  test('trapezoid formula shows the oriented a and b values', () => {
-    for (let i = 0; i < 10; i++) {
-      const t = fa.transformFigure(fa.generateTrapezoid());
-      const { aLen, bLen } = fa.trapezoidOrientedLabels(t);
-      const html = fa.trapezoidFormulaHTML(t, 1, (t.baseA + t.baseB) * t.height / 2);
-      // The "(a + b) · h" expansion should show aLen first and bLen second
-      const re = new RegExp(`\\(${aLen} \\+ ${bLen}\\)`);
-      assert(re.test(html), `formula should contain "(${aLen} + ${bLen})": ${html}`);
     }
   });
 });
@@ -710,43 +679,57 @@ section('counter-clockwise vertex ordering', () => {
   });
 });
 
-section('triangle height label randomization', () => {
-  test('acute/obtuse get a baseLabel; right does not', () => {
-    for (let i = 0; i < 10; i++) {
-      assert(['a','b','c'].includes(fa.generateAcuteTriangle().baseLabel));
-      assert(['a','b','c'].includes(fa.generateObtuseTriangle().baseLabel));
-    }
-  });
-
+section('triangle height letter from apex position', () => {
   test('right triangle formula stays a/b', () => {
     for (let i = 0; i < 10; i++) {
       const t = fa.generateRightTriangle();
       const html = fa.triangleFormulaHTML(t, 1, 1);
-      assert(!/baseLabel/.test(html));
-      assert(/\\frac\{a \\;\\text\{\.\}\\; b\}\{2\}/.test(html) || /a \\;\\text\{\.\}\\; b/.test(html),
-        'right-triangle formula should still read "(a · b)/2"');
+      assert(/a \\;\\text\{\.\}\\; b/.test(html),
+        'right-triangle formula should still read "a . b"');
     }
   });
 
-  test('pickBaseLabel returns a, b, or c', () => {
+  test('triangleBaseLetter matches the apex index in the vertex list', () => {
+    for (let i = 0; i < 30; i++) {
+      const t = fa.transformFigure(fa.generateAcuteTriangle());
+      const letter = fa.triangleBaseLetter(t);
+      const idx = t.vertices.findIndex(v => v.x === t.apex.x && v.y === t.apex.y);
+      assertEq(letter, ['a','b','c'][idx]);
+    }
+  });
+
+  test('all three letters are reachable across 8 transforms', () => {
     const seen = new Set();
-    for (let i = 0; i < 60; i++) seen.add(fa.pickBaseLabel());
+    // The apex position in the CCW-reordered list varies by transform, so
+    // across enough samples we should see a, b, AND c.
+    for (let i = 0; i < 300 && seen.size < 3; i++) {
+      const t = fa.transformFigure(fa.generateAcuteTriangle());
+      seen.add(fa.triangleBaseLetter(t));
+    }
     assertEq(seen.size, 3);
   });
 });
 
-section('trapezoid a/b orientation (right = a when vertical)', () => {
-  test('vertical trapezoid: a is right side, b is left', () => {
+section('trapezoid longer side = a', () => {
+  test('aLen is always ≥ bLen regardless of orientation', () => {
     for (let i = 0; i < 20; i++) {
       const base = fa.generateTrapezoid();
-      for (let k = 0; k < 20; k++) {
+      for (let k = 0; k < 10; k++) {
         const t = fa.transformFigure(base);
-        const { aStart, bStart } = fa.trapezoidOrientedLabels(t);
-        if (aStart.x !== bStart.x) continue;  // skip horizontal case
-        // Actually we want the vertical case, which is when aStart.y !== bStart.y? Hmm.
+        const { aLen, bLen } = fa.trapezoidOrientedLabels(t);
+        assert(aLen > bLen, `a should be the longer parallel side. aLen=${aLen} bLen=${bLen}`);
       }
     }
-    // The main orientation test covers this; this test just reinforces direction.
+  });
+
+  test('formula renders with the longer side as a', () => {
+    for (let i = 0; i < 10; i++) {
+      const t = fa.transformFigure(fa.generateTrapezoid());
+      const { aLen, bLen } = fa.trapezoidOrientedLabels(t);
+      const html = fa.trapezoidFormulaHTML(t, 1, (t.baseA + t.baseB) * t.height / 2);
+      const re = new RegExp(`\\(${aLen} \\+ ${bLen}\\)`);
+      assert(re.test(html), `formula should contain "(${aLen} + ${bLen})": ${html}`);
+    }
   });
 });
 

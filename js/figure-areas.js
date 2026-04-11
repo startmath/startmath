@@ -80,10 +80,14 @@ function ensureOneEven(base, height, minB, maxB, minH, maxH) {
   return [Math.max(minB, Math.min(maxB, base)), Math.max(minH, Math.min(maxH, height))];
 }
 
-// Random base-side letter for non-right triangles. The height drawn to that
-// side becomes h_{letter}. Right triangles always keep 'a' + 'b'.
-function pickBaseLabel() {
-  return ['a', 'b', 'c'][Math.floor(Math.random() * 3)];
+// For non-right triangles the height letter is derived from the apex's CCW
+// vertex label. Triangle vertices are labeled A, B, C in CCW order, so the
+// side opposite vertex X is side x. A height drawn from vertex X lands on
+// side x, hence the label h_x.
+function triangleBaseLetter(task) {
+  if (!task.apex || !Array.isArray(task.vertices)) return 'a';
+  const idx = task.vertices.findIndex(v => v.x === task.apex.x && v.y === task.apex.y);
+  return ['a', 'b', 'c'][idx >= 0 ? idx : 0];
 }
 
 // Strict numeric input check. Accepts optional minus, digits, and at most one
@@ -176,7 +180,6 @@ function generateAcuteTriangle() {
       figure: 'triangle',
       type: 'acute',
       typeBG: 'Остроъгълен',
-      baseLabel: pickBaseLabel(),
       vertices: [
         { x: x0, y: y0 },
         { x: x0 + base, y: y0 },
@@ -248,7 +251,6 @@ function generateObtuseTriangle() {
       figure: 'triangle',
       type: 'obtuse',
       typeBG: 'Тъпоъгълен',
-      baseLabel: pickBaseLabel(),
       vertices: [
         { x: x0, y: y0 },
         { x: x0 + base, y: y0 },
@@ -1077,9 +1079,16 @@ function transformFigure(task) {
   for (const [k, v] of Object.entries(task)) {
     out[k] = transformDeep(v, fn);
   }
-  // Enforce counter-clockwise A→B→C→D vertex ordering on every task
-  if (Array.isArray(out.vertices)) {
+  // Enforce counter-clockwise A→B→C→D vertex ordering on every task, then
+  // rotate the starting vertex randomly so the label `A` can land on any
+  // corner. For triangles this makes the apex reachable at positions 0, 1,
+  // or 2 — i.e. h_a, h_b, and h_c are all achievable.
+  if (Array.isArray(out.vertices) && out.vertices.length >= 3) {
     out.vertices = toCounterClockwise(out.vertices);
+    const shift = Math.floor(Math.random() * out.vertices.length);
+    if (shift > 0) {
+      out.vertices = out.vertices.slice(shift).concat(out.vertices.slice(0, shift));
+    }
   }
   return out;
 }
@@ -1601,7 +1610,7 @@ function renderTriangleSolution(svg, task, correct) {
   const heightCm = task.height * cm;
   const horiz = A.y === B.y;
   const isRight = task.type === 'right';
-  const baseLetter = isRight ? 'a' : (task.baseLabel || 'a');
+  const baseLetter = isRight ? 'a' : triangleBaseLetter(task);
   const color = correct ? '#4CAF50' : '#EF5350';
 
   // Base (preserve original positioning logic exactly for triangles)
@@ -1732,26 +1741,14 @@ function renderParallelogramSolution(svg, task, correct) {
   drawRightAngleMarker(svg, H, T, A, B, center, color);
 }
 
-// Decides which of the two parallel sides should be labeled `a` and which `b`
-// based on the task's post-transform orientation. Rules:
-//   - horizontal parallel sides → bottom (smaller grid y) = a, top = b
-//   - vertical parallel sides   → right  (larger  grid x) = a, left = b
+// The longer of the two parallel sides is always labeled `a`, the shorter
+// `b`. `baseA` in the generator is the longer side by construction, so we
+// just return the "bottom" (longer) pair as `a`.
 function trapezoidOrientedLabels(task) {
   const { bottomStart, bottomEnd, topStart, topEnd, baseA, baseB } = task;
-  const isHorizontal = bottomStart.y === bottomEnd.y;
-  const bottomPairIsA = isHorizontal
-    ? bottomStart.y < topStart.y
-    : bottomStart.x > topStart.x;
-
-  if (bottomPairIsA) {
-    return {
-      aStart: bottomStart, aEnd: bottomEnd, aLen: baseA,
-      bStart: topStart,    bEnd: topEnd,    bLen: baseB
-    };
-  }
   return {
-    aStart: topStart,    aEnd: topEnd,    aLen: baseB,
-    bStart: bottomStart, bEnd: bottomEnd, bLen: baseA
+    aStart: bottomStart, aEnd: bottomEnd, aLen: baseA,
+    bStart: topStart,    bEnd: topEnd,    bLen: baseB
   };
 }
 
@@ -1873,7 +1870,7 @@ function triangleFormulaHTML(task, cm, area) {
     return `$$S = \\frac{a \\;\\text{.}\\; b}{2}$$
             $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
   }
-  const base = task.baseLabel || 'a';
+  const base = triangleBaseLetter(task);
   return `$$S = \\frac{${base} \\;\\text{.}\\; h_${base}}{2}$$
           $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
 }
