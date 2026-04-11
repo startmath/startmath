@@ -109,6 +109,15 @@ function showInputError(input, message) {
   err.classList.remove('hidden');
 }
 
+function clearInputError(input) {
+  if (input) input.style.borderColor = '';
+  const err = document.querySelector('#answer-error');
+  if (err) {
+    err.textContent = '';
+    err.classList.add('hidden');
+  }
+}
+
 // ===== Triangle Generators =====
 
 function generateRightTriangle() {
@@ -1038,14 +1047,14 @@ function signedArea(verts) {
   return s / 2;
 }
 
-// Returns a copy of `verts` ordered visually clockwise (A → B → C → D …).
+// Returns a copy of `verts` ordered visually counter-clockwise (A → B → C → D …).
 // The starting vertex is the same object that was first in the input, so the
 // winding flips but the entry point is preserved; for odd polygons this means
 // A stays put and the rest reverse around it.
-function toClockwise(verts) {
+function toCounterClockwise(verts) {
   if (!verts || verts.length < 3) return verts;
-  if (signedArea(verts) < 0) return verts;
-  // CCW → reverse, keeping verts[0] as the starting vertex
+  if (signedArea(verts) > 0) return verts;
+  // CW → reverse, keeping verts[0] as the starting vertex
   const [first, ...rest] = verts;
   return [first, ...rest.reverse()];
 }
@@ -1068,9 +1077,9 @@ function transformFigure(task) {
   for (const [k, v] of Object.entries(task)) {
     out[k] = transformDeep(v, fn);
   }
-  // Enforce clockwise A→B→C→D vertex ordering on every task
+  // Enforce counter-clockwise A→B→C→D vertex ordering on every task
   if (Array.isArray(out.vertices)) {
-    out.vertices = toClockwise(out.vertices);
+    out.vertices = toCounterClockwise(out.vertices);
   }
   return out;
 }
@@ -2111,6 +2120,10 @@ function showTask() {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') checkAnswer(task);
   });
+  // Clear the validation error as soon as the user edits the input. If an
+  // answer was previously rejected (red border + inline message), starting
+  // to type a new value wipes both so the UI looks fresh again.
+  input.addEventListener('input', () => clearInputError(input));
 
   setTimeout(() => input.focus(), 150);
 }

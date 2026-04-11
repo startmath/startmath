@@ -43,7 +43,7 @@ const loader = new Function(src + `
     parallelogramFormulaHTML, triangleFormulaHTML, trapezoidFormulaHTML,
     mixedFormulaHTML, frameFormulaHTML,
     trapezoidOrientedLabels, transformDeep,
-    signedArea, toClockwise,
+    signedArea, toCounterClockwise,
     isValidAnswerInput, pickBaseLabel
   };
 `);
@@ -686,23 +686,25 @@ section('mixed templates — no collinear fake vertices', () => {
   });
 });
 
-section('clockwise vertex ordering', () => {
-  test('toClockwise flips CCW lists and leaves CW lists alone', () => {
+section('counter-clockwise vertex ordering', () => {
+  test('toCounterClockwise flips CW lists and leaves CCW lists alone', () => {
     // Rectangle in CCW grid order
     const ccw = [{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}];
     assert(fa.signedArea(ccw) > 0, 'rectangle CCW should have positive signed area');
-    const cw = fa.toClockwise(ccw);
-    assert(fa.signedArea(cw) < 0, 'toClockwise output should have negative signed area');
-    // Already-CW stays as-is
-    assert(fa.toClockwise(cw) === cw, 'CW input should be returned unchanged');
+    assert(fa.toCounterClockwise(ccw) === ccw, 'CCW input should be returned unchanged');
+    // CW input gets flipped
+    const cw = [{x:0,y:0},{x:0,y:3},{x:4,y:3},{x:4,y:0}];
+    assert(fa.signedArea(cw) < 0, 'this rectangle should be CW');
+    const flipped = fa.toCounterClockwise(cw);
+    assert(fa.signedArea(flipped) > 0, 'toCounterClockwise output should have positive signed area');
   });
 
-  test('every task out of generateAllTasks has clockwise vertices', () => {
+  test('every task out of generateAllTasks has counter-clockwise vertices', () => {
     for (const modId of ['triangle', 'parallelogram', 'trapezoid', 'mixed']) {
       const tasks = fa.generateAllTasks(12, modId);
       for (const t of tasks) {
-        assert(fa.signedArea(t.vertices) < 0,
-          `${modId} task vertices should be CW. signedArea=${fa.signedArea(t.vertices)}`);
+        assert(fa.signedArea(t.vertices) > 0,
+          `${modId} task vertices should be CCW. signedArea=${fa.signedArea(t.vertices)}`);
       }
     }
   });
