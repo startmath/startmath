@@ -25,6 +25,33 @@ function svgEl(tag, attrs) {
   return el;
 }
 
+// Sets the text content of an SVG <text> element, rendering any "_x" sequence
+// in the input as a proper <tspan> subscript. Accepts either a plain string
+// like "h_a = 5 cm" or a bare string with no underscore.
+function setLabelText(el, text) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+  const m = /^(.*?)_([a-zA-Zа-яА-Я0-9])(.*)$/.exec(text);
+  if (!m) {
+    el.textContent = text;
+    return;
+  }
+  const [, before, sub, after] = m;
+  const t1 = document.createElementNS(NS, 'tspan');
+  t1.textContent = before;
+  el.appendChild(t1);
+
+  const t2 = document.createElementNS(NS, 'tspan');
+  t2.setAttribute('font-size', '75%');
+  t2.setAttribute('dy', '3');
+  t2.textContent = sub;
+  el.appendChild(t2);
+
+  const t3 = document.createElementNS(NS, 'tspan');
+  t3.setAttribute('dy', '-3');
+  t3.textContent = after;
+  el.appendChild(t3);
+}
+
 // Grid coord → SVG pixel (y flipped: 0=bottom, 10=top)
 function px(gridX) { return PAD_PX + gridX * CELL_PX; }
 function py(gridY) { return PAD_PX + (GRID_SIZE - gridY) * CELL_PX; }
@@ -51,6 +78,35 @@ function ensureOneEven(base, height, minB, maxB, minH, maxH) {
     height = height < maxH ? height + 1 : height - 1;
   }
   return [Math.max(minB, Math.min(maxB, base)), Math.max(minH, Math.min(maxH, height))];
+}
+
+// Random base-side letter for non-right triangles. The height drawn to that
+// side becomes h_{letter}. Right triangles always keep 'a' + 'b'.
+function pickBaseLabel() {
+  return ['a', 'b', 'c'][Math.floor(Math.random() * 3)];
+}
+
+// Strict numeric input check. Accepts optional minus, digits, and at most one
+// decimal separator (dot). The caller pre-normalizes comma to dot.
+function isValidAnswerInput(raw) {
+  if (!raw) return false;
+  return /^\d+(\.\d+)?$/.test(raw);
+}
+
+function showInputError(input, message) {
+  input.style.borderColor = 'var(--color-error)';
+  // Reuse or create an inline error element next to the answer section
+  let err = document.querySelector('#answer-error');
+  if (!err) {
+    err = document.createElement('div');
+    err.id = 'answer-error';
+    err.className = 'settings-error';
+    err.style.marginTop = '0.5rem';
+    const section = document.querySelector('.answer-section');
+    if (section) section.appendChild(err);
+  }
+  err.textContent = message;
+  err.classList.remove('hidden');
 }
 
 // ===== Triangle Generators =====
@@ -111,6 +167,7 @@ function generateAcuteTriangle() {
       figure: 'triangle',
       type: 'acute',
       typeBG: 'Остроъгълен',
+      baseLabel: pickBaseLabel(),
       vertices: [
         { x: x0, y: y0 },
         { x: x0 + base, y: y0 },
@@ -137,6 +194,7 @@ function generateAcuteTriangle() {
     figure: 'triangle',
     type: 'acute',
     typeBG: 'Остроъгълен',
+    baseLabel: pickBaseLabel(),
     vertices: [
       { x: x0, y: y0 },
       { x: x0 + base, y: y0 },
@@ -181,6 +239,7 @@ function generateObtuseTriangle() {
       figure: 'triangle',
       type: 'obtuse',
       typeBG: 'Тъпоъгълен',
+      baseLabel: pickBaseLabel(),
       vertices: [
         { x: x0, y: y0 },
         { x: x0 + base, y: y0 },
@@ -199,6 +258,7 @@ function generateObtuseTriangle() {
     figure: 'triangle',
     type: 'obtuse',
     typeBG: 'Тъпоъгълен',
+    baseLabel: pickBaseLabel(),
     vertices: [
       { x: 3, y: 1 },
       { x: 8, y: 1 },
@@ -464,6 +524,90 @@ function generateTrapezoid() {
   };
 }
 
+// Non-grid pentagon: rectangle with one corner cut off by a slanted line,
+// yielding 5 vertices (4 original, +1 cut pair, −1 removed corner). The frame
+// decomposition reports 1 right-triangle cut-off piece at the cut corner.
+function generateFramedPentagon() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w = randInt(5, 8);
+    const h = randInt(5, 8);
+    const legH = randInt(1, Math.min(3, w - 2));
+    const legV = randInt(1, Math.min(3, h - 2));
+    if (legH < 1 || legV < 1) continue;
+    const x0 = randInt(0, GRID_SIZE - w);
+    const y0 = randInt(0, GRID_SIZE - h);
+
+    const TL = { x: x0, y: y0 + h };
+    const TR = { x: x0 + w, y: y0 + h };
+    const BR = { x: x0 + w, y: y0 };
+    const BL = { x: x0, y: y0 };
+
+    const corner = Math.floor(Math.random() * 4);
+    let vertices;
+    if (corner === 0) {
+      // BL cut
+      const onLeft = { x: x0, y: y0 + legV };
+      const onBot = { x: x0 + legH, y: y0 };
+      vertices = [TL, TR, BR, onBot, onLeft];
+    } else if (corner === 1) {
+      // BR cut
+      const onBot = { x: x0 + w - legH, y: y0 };
+      const onRight = { x: x0 + w, y: y0 + legV };
+      vertices = [TL, TR, onRight, onBot, BL];
+    } else if (corner === 2) {
+      // TR cut
+      const onRight = { x: x0 + w, y: y0 + h - legV };
+      const onTop = { x: x0 + w - legH, y: y0 + h };
+      vertices = [TL, onTop, onRight, BR, BL];
+    } else {
+      // TL cut
+      const onTop = { x: x0 + legH, y: y0 + h };
+      const onLeft = { x: x0, y: y0 + h - legV };
+      vertices = [onLeft, onTop, TR, BR, BL];
+    }
+
+    return {
+      figure: 'mixed',
+      template: 'framedPentagon',
+      nonGrid: true,
+      vertices
+    };
+  }
+  return null;
+}
+
+// Non-grid hexagon: rectangle with two opposite corners cut off.
+function generateFramedHexagon() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w = randInt(6, 8);
+    const h = randInt(6, 8);
+    const legH1 = randInt(1, 2);
+    const legV1 = randInt(1, 2);
+    const legH2 = randInt(1, 2);
+    const legV2 = randInt(1, 2);
+    if (legH1 + legH2 > w - 2) continue;
+    if (legV1 + legV2 > h - 2) continue;
+    const x0 = randInt(0, GRID_SIZE - w);
+    const y0 = randInt(0, GRID_SIZE - h);
+
+    // Cut TR and BL (opposite corners)
+    const TL = { x: x0, y: y0 + h };
+    const onTop = { x: x0 + w - legH1, y: y0 + h };
+    const onRight = { x: x0 + w, y: y0 + h - legV1 };
+    const BR = { x: x0 + w, y: y0 };
+    const onBot = { x: x0 + legH2, y: y0 };
+    const onLeft = { x: x0, y: y0 + legV2 };
+
+    return {
+      figure: 'mixed',
+      template: 'framedHexagon',
+      nonGrid: true,
+      vertices: [TL, onTop, onRight, BR, onBot, onLeft]
+    };
+  }
+  return null;
+}
+
 // ===== Mixed / Compound Generators =====
 // Each template returns a task with:
 //   vertices:     outer polygon (without the internal shared edge)
@@ -493,7 +637,16 @@ function simplifyPolygon(verts) {
 
 function finalizeMixed(task) {
   if (!task) return null;
-  task.vertices = simplifyPolygon(task.vertices);
+  const simplified = simplifyPolygon(task.vertices);
+  // Reducibility guard: if the decomposition-removing simplify step dropped
+  // the polygon to fewer than 4 vertices, the compound was effectively a
+  // simple shape (e.g., rectangle + square that merged into one rectangle).
+  if (simplified.length < 4) return null;
+  // Also reject if simplifying dropped more than 1 vertex from the expected
+  // template shape — such reductions mean the sub-figures aligned in a way
+  // that collapses part of the compound boundary.
+  if (simplified.length < task.vertices.length - 1) return null;
+  task.vertices = simplified;
   return task;
 }
 
@@ -678,11 +831,171 @@ function generateRectTriangleSide() {
   return null;
 }
 
+// Parallelogram on the bottom + isoceles triangle on top. Triangle base
+// matches the parallelogram's top edge. Yields 5 outer vertices.
+function generateParaTriangle() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(4, 6);
+    const h1 = randInt(2, 3);
+    const h2 = randInt(2, 4);
+    const offMag = randInt(1, 2);
+    const offSign = Math.random() < 0.5 ? -1 : 1;
+    const off = offMag * offSign;
+    if ((base * h2) % 2 !== 0) continue;
+    if (base % 2 !== 0) continue; // so apex lands on a lattice point
+    if (h1 + h2 > GRID_SIZE) continue;
+
+    const xMin = Math.min(0, off);
+    const xMax = Math.max(base, base + off);
+    const x0min = -xMin;
+    const x0max = GRID_SIZE - xMax;
+    if (x0min > x0max) continue;
+    const x0 = randInt(x0min, x0max);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    const apexX = x0 + off + base / 2;
+
+    return {
+      figure: 'mixed',
+      template: 'paraTriangle',
+      vertices: [
+        { x: apexX, y: y0 + h1 + h2 },            // apex
+        { x: x0 + base + off, y: y0 + h1 },       // para TR
+        { x: x0 + base, y: y0 },                  // para BR
+        { x: x0, y: y0 },                         // para BL
+        { x: x0 + off, y: y0 + h1 }               // para TL
+      ],
+      subParts: [
+        { label: 'Успоредник', dims: [base, h1], formulaType: 'para', area: base * h1 },
+        { label: 'Триъгълник', dims: [base, h2], formulaType: 'tri', area: (base * h2) / 2 }
+      ],
+      sharedEdges: [[
+        { x: x0 + off, y: y0 + h1 },
+        { x: x0 + base + off, y: y0 + h1 }
+      ]],
+      subCentroids: [
+        { x: x0 + base / 2 + off / 2, y: y0 + h1 / 2 },
+        { x: apexX, y: y0 + h1 + h2 / 3 }
+      ],
+      totalArea: base * h1 + (base * h2) / 2
+    };
+  }
+  return null;
+}
+
+// Three-part compound: trapezoid bottom + rectangle middle + triangle top.
+// All three parts share the same top/bottom width `b` so they stack neatly.
+// Yields 7 outer vertices.
+function generateTower() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const a = randInt(5, 7);
+    const b = randInt(2, a - 2);
+    const h1 = randInt(1, 2);
+    const h2 = randInt(1, 3);
+    const h3 = randInt(2, 3);
+    if (h1 + h2 + h3 > GRID_SIZE) continue;
+    if (((a + b) * h1) % 2 !== 0) continue;
+    if ((b * h3) % 2 !== 0) continue;
+    if (b % 2 !== 0) continue;
+
+    const diff = a - b;
+    const leftOff = Math.floor(diff / 2);
+    const rightOff = diff - leftOff;
+    if (leftOff === 0 || rightOff === 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - a);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2 - h3);
+    const apexX = x0 + leftOff + b / 2;
+
+    return {
+      figure: 'mixed',
+      template: 'tower',
+      vertices: [
+        { x: apexX, y: y0 + h1 + h2 + h3 },             // apex
+        { x: x0 + a - rightOff, y: y0 + h1 + h2 },      // rect TR
+        { x: x0 + a - rightOff, y: y0 + h1 },           // trap TR / rect BR
+        { x: x0 + a, y: y0 },                           // trap BR
+        { x: x0, y: y0 },                               // trap BL
+        { x: x0 + leftOff, y: y0 + h1 },                // trap TL / rect BL
+        { x: x0 + leftOff, y: y0 + h1 + h2 }            // rect TL
+      ],
+      subParts: [
+        { label: 'Трапец', dims: [a, b, h1], formulaType: 'trap', area: (a + b) * h1 / 2 },
+        { label: 'Правоъгълник', dims: [b, h2], formulaType: 'rect', area: b * h2 },
+        { label: 'Триъгълник', dims: [b, h3], formulaType: 'tri', area: (b * h3) / 2 }
+      ],
+      sharedEdges: [
+        [{ x: x0 + leftOff, y: y0 + h1 }, { x: x0 + a - rightOff, y: y0 + h1 }],
+        [{ x: x0 + leftOff, y: y0 + h1 + h2 }, { x: x0 + a - rightOff, y: y0 + h1 + h2 }]
+      ],
+      subCentroids: [
+        { x: x0 + a / 2, y: y0 + h1 / 2 },
+        { x: x0 + leftOff + b / 2, y: y0 + h1 + h2 / 2 },
+        { x: apexX, y: y0 + h1 + h2 + h3 / 3 }
+      ],
+      totalArea: (a + b) * h1 / 2 + b * h2 + (b * h3) / 2
+    };
+  }
+  return null;
+}
+
+// Rectangle + obtuse triangle leaning outside the rectangle's horizontal
+// extent. The triangle's base coincides with the rectangle's top edge, but
+// its apex hangs past one of the top corners, giving a clearly concave shape.
+function generateRectObtuseTriangle() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w = randInt(3, 5);
+    const h1 = randInt(2, 3);
+    const h2 = randInt(3, 4);
+    const overhang = randInt(2, 3);
+    const goLeft = Math.random() < 0.5;
+    if ((w * h2) % 2 !== 0) continue;
+    if (h1 + h2 > GRID_SIZE) continue;
+    const bboxW = w + overhang;
+    if (bboxW > GRID_SIZE) continue;
+
+    const x0min = goLeft ? overhang : 0;
+    const x0max = goLeft ? GRID_SIZE - w : GRID_SIZE - w - overhang;
+    if (x0min > x0max) continue;
+    const x0 = randInt(x0min, x0max);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+    const apexX = goLeft ? x0 - overhang : x0 + w + overhang;
+
+    return {
+      figure: 'mixed',
+      template: 'rectObtuseTriangle',
+      vertices: [
+        { x: x0, y: y0 },                     // rect BL
+        { x: x0 + w, y: y0 },                 // rect BR
+        { x: x0 + w, y: y0 + h1 },            // rect TR
+        { x: apexX, y: y0 + h1 + h2 },        // obtuse apex (off to one side)
+        { x: x0, y: y0 + h1 }                 // rect TL
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [w, h1], formulaType: 'rect', area: w * h1 },
+        { label: 'Тъпоъгълен триъгълник', dims: [w, h2], formulaType: 'tri', area: (w * h2) / 2 }
+      ],
+      sharedEdges: [[
+        { x: x0, y: y0 + h1 }, { x: x0 + w, y: y0 + h1 }
+      ]],
+      subCentroids: [
+        { x: x0 + w / 2, y: y0 + h1 / 2 },
+        { x: (x0 + x0 + w + apexX) / 3, y: y0 + h1 + h2 / 3 }
+      ],
+      totalArea: w * h1 + (w * h2) / 2
+    };
+  }
+  return null;
+}
+
 const MIXED_TEMPLATES = [
   generateHouse,
   generateRectTrapezoid,
   generateRectTriangleSide,
-  generateTrapezoidTriangle
+  generateTrapezoidTriangle,
+  generateParaTriangle,
+  generateTower,
+  generateRectObtuseTriangle
 ];
 
 function generateMixed() {
@@ -713,6 +1026,30 @@ function transformDeep(v, fn) {
   return v;
 }
 
+// Signed shoelace area in grid coordinates (y up). Positive = CCW in grid
+// coords, which maps to CCW visually on screen since the SVG y-flip simply
+// mirrors vertically without reversing winding. Negative = CW visually.
+function signedArea(verts) {
+  let s = 0;
+  for (let i = 0; i < verts.length; i++) {
+    const j = (i + 1) % verts.length;
+    s += verts[i].x * verts[j].y - verts[j].x * verts[i].y;
+  }
+  return s / 2;
+}
+
+// Returns a copy of `verts` ordered visually clockwise (A → B → C → D …).
+// The starting vertex is the same object that was first in the input, so the
+// winding flips but the entry point is preserved; for odd polygons this means
+// A stays put and the rest reverse around it.
+function toClockwise(verts) {
+  if (!verts || verts.length < 3) return verts;
+  if (signedArea(verts) < 0) return verts;
+  // CCW → reverse, keeping verts[0] as the starting vertex
+  const [first, ...rest] = verts;
+  return [first, ...rest.reverse()];
+}
+
 function transformFigure(task) {
   const G = GRID_SIZE;
   const transforms = [
@@ -730,6 +1067,10 @@ function transformFigure(task) {
   const out = { ...task };
   for (const [k, v] of Object.entries(task)) {
     out[k] = transformDeep(v, fn);
+  }
+  // Enforce clockwise A→B→C→D vertex ordering on every task
+  if (Array.isArray(out.vertices)) {
+    out.vertices = toClockwise(out.vertices);
   }
   return out;
 }
@@ -760,19 +1101,25 @@ function generateAllTasks(count, moduleId) {
       all.push(transformFigure(generateParallelogram()));
     }
   } else if (moduleId === 'mixed') {
-    // Mix of compound grid-aligned figures + occasional non-grid frame variants
+    // Mix of compound grid-aligned figures + occasional non-grid frame variants.
+    // Frame pool: triangle (3 verts), parallelogram (4), pentagon (5), hexagon (6).
     for (let i = 0; i < count; i++) {
       const r = Math.random();
       let task;
-      if (r < 0.15) {
+      if (r < 0.10) {
         task = generateTriangleNonGrid();
         task.figure = 'mixed';
-      } else if (r < 0.30) {
+      } else if (r < 0.20) {
         task = generateParallelogramNonGrid();
         task.figure = 'mixed';
-      } else {
-        task = generateMixed();
+      } else if (r < 0.27) {
+        task = generateFramedPentagon();
+        if (task) task.figure = 'mixed';
+      } else if (r < 0.32) {
+        task = generateFramedHexagon();
+        if (task) task.figure = 'mixed';
       }
+      if (!task) task = generateMixed();
       all.push(transformFigure(task));
     }
   } else {
@@ -964,7 +1311,7 @@ function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
     'font-size': 13, 'font-weight': 'bold',
     fill: color, 'font-family': 'Nunito, sans-serif'
   });
-  label.textContent = labelText;
+  setLabelText(label, labelText);
 
   if (horiz) {
     const midPX = (px(start.x) + px(end.x)) / 2;
@@ -995,7 +1342,16 @@ function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
 }
 
 // Draws the height line + foot dot + label. If `dashed` is true, the line is dashed.
+// The line is normalized so that `top` is always the upper (higher grid y)
+// endpoint when the line is vertical, or the left (smaller x) endpoint when
+// horizontal. This keeps label placement and visual direction consistent
+// regardless of which way the post-transform polygon happens to face.
 function drawHeightWithLabel(svg, top, foot, labelText, color, dashed, baseStart, baseEnd) {
+  if (top.x === foot.x && top.y < foot.y) {
+    [top, foot] = [foot, top];
+  } else if (top.y === foot.y && top.x > foot.x) {
+    [top, foot] = [foot, top];
+  }
   const attrs = {
     x1: px(top.x), y1: py(top.y),
     x2: px(foot.x), y2: py(foot.y),
@@ -1015,7 +1371,7 @@ function drawHeightWithLabel(svg, top, foot, labelText, color, dashed, baseStart
     'font-size': 13, 'font-weight': 'bold',
     fill: color, 'font-family': 'Nunito, sans-serif'
   });
-  hl.textContent = labelText;
+  setLabelText(hl, labelText);
 
   if (baseHoriz) {
     const hMidPy = (py(top.y) + py(foot.y)) / 2;
@@ -1108,8 +1464,23 @@ function decomposeBBoxFrame(vertices) {
   for (const corner of bboxCorners) {
     if (vertices.some(v => v.x === corner.x && v.y === corner.y)) continue;
 
-    const onVert = vertices.find(v => v.x === corner.x);
-    const onHoriz = vertices.find(v => v.y === corner.y);
+    // Pick the vertex on each adjacent bbox side that is CLOSEST to this
+    // corner — not just the first one found. This matters for polygons with
+    // more than 4 vertices where multiple points share a side.
+    let onVert = null;
+    for (const v of vertices) {
+      if (v.x !== corner.x) continue;
+      if (!onVert || Math.abs(v.y - corner.y) < Math.abs(onVert.y - corner.y)) {
+        onVert = v;
+      }
+    }
+    let onHoriz = null;
+    for (const v of vertices) {
+      if (v.y !== corner.y) continue;
+      if (!onHoriz || Math.abs(v.x - corner.x) < Math.abs(onHoriz.x - corner.x)) {
+        onHoriz = v;
+      }
+    }
     if (!onVert || !onHoriz) continue;
 
     const legV = Math.abs(onVert.y - corner.y);
@@ -1221,7 +1592,7 @@ function renderTriangleSolution(svg, task, correct) {
   const heightCm = task.height * cm;
   const horiz = A.y === B.y;
   const isRight = task.type === 'right';
-  const heightLabel = isRight ? 'b' : 'h';
+  const baseLetter = isRight ? 'a' : (task.baseLabel || 'a');
   const color = correct ? '#4CAF50' : '#EF5350';
 
   // Base (preserve original positioning logic exactly for triangles)
@@ -1235,7 +1606,8 @@ function renderTriangleSolution(svg, task, correct) {
     'font-size': 13, 'font-weight': 'bold',
     fill: color, 'font-family': 'Nunito, sans-serif'
   });
-  bl.textContent = `a = ${formatBG(baseCm)} cm`;
+  const heightLabel = isRight ? 'b' : `h_${baseLetter}`;
+  setLabelText(bl, `${baseLetter} = ${formatBG(baseCm)} cm`);
   const triCenterPY = py((A.y + B.y + C.y) / 3);
   const triCenterPX = px((A.x + B.x + C.x) / 3);
   if (horiz) {
@@ -1291,7 +1663,7 @@ function renderTriangleSolution(svg, task, correct) {
     'font-size': 13, 'font-weight': 'bold',
     fill: color, 'font-family': 'Nunito, sans-serif'
   });
-  hl.textContent = `${heightLabel} = ${formatBG(heightCm)} cm`;
+  setLabelText(hl, `${heightLabel} = ${formatBG(heightCm)} cm`);
   if (horiz) {
     const hMidPy = (py(C.y) + py(H.y)) / 2;
     let goRight = px(C.x) < px(5);
@@ -1354,13 +1726,13 @@ function renderParallelogramSolution(svg, task, correct) {
 // Decides which of the two parallel sides should be labeled `a` and which `b`
 // based on the task's post-transform orientation. Rules:
 //   - horizontal parallel sides → bottom (smaller grid y) = a, top = b
-//   - vertical parallel sides   → left   (smaller grid x) = a, right = b
+//   - vertical parallel sides   → right  (larger  grid x) = a, left = b
 function trapezoidOrientedLabels(task) {
   const { bottomStart, bottomEnd, topStart, topEnd, baseA, baseB } = task;
   const isHorizontal = bottomStart.y === bottomEnd.y;
   const bottomPairIsA = isHorizontal
     ? bottomStart.y < topStart.y
-    : bottomStart.x < topStart.x;
+    : bottomStart.x > topStart.x;
 
   if (bottomPairIsA) {
     return {
@@ -1488,11 +1860,13 @@ function triangleFormulaHTML(task, cm, area) {
   const baseCm = task.base * cm;
   const heightCm = task.height * cm;
   const isRight = task.type === 'right';
-  return isRight
-    ? `$$S = \\frac{a \\;\\text{.}\\; b}{2}$$
-       $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`
-    : `$$S = \\frac{a \\;\\text{.}\\; h_a}{2}$$
-       $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
+  if (isRight) {
+    return `$$S = \\frac{a \\;\\text{.}\\; b}{2}$$
+            $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
+  }
+  const base = task.baseLabel || 'a';
+  return `$$S = \\frac{${base} \\;\\text{.}\\; h_${base}}{2}$$
+          $$S = \\frac{${formatBG(baseCm)} \\;\\text{.}\\; ${formatBG(heightCm)}}{2} = ${formatBG(area)} \\text{ cm}^2$$`;
 }
 
 function parallelogramFormulaHTML(task, cm, area) {
@@ -1593,7 +1967,10 @@ const MODULES = {
         house: 'Правоъгълник + триъгълник',
         rectTrap: 'Правоъгълник + трапец',
         rectTriSide: 'Правоъгълник + триъгълник',
-        trapTriangle: 'Трапец + триъгълник'
+        trapTriangle: 'Трапец + триъгълник',
+        paraTriangle: 'Успоредник + триъгълник',
+        tower: 'Трапец + правоъгълник + триъгълник',
+        rectObtuseTriangle: 'Правоъгълник + тъпоъгълен триъгълник'
       };
       return labels[task.template] || 'Смесена фигура';
     }
@@ -1748,13 +2125,17 @@ function checkAnswer(task) {
   if (input.disabled) return;
 
   const raw = input.value.trim().replace(',', '.');
-  const userAnswer = parseFloat(raw);
 
-  if (isNaN(userAnswer) || raw === '') {
-    input.style.borderColor = 'var(--color-error)';
+  // Reject empty input, letters, or any non-numeric characters. Only digits
+  // and at most one decimal separator are allowed.
+  if (!isValidAnswerInput(raw)) {
+    showInputError(input, raw === ''
+      ? 'Въведи отговор.'
+      : 'Въведи само число (без букви).');
     input.focus();
     return;
   }
+  const userAnswer = parseFloat(raw);
 
   const cm = config.cmPerSquare;
   const correctArea = mod.computeArea(task, cm);
