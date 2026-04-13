@@ -349,7 +349,7 @@ function showScoreScreen() {
 
   let breakdownHTML = '';
   for (const [id, data] of Object.entries(subtopicResults)) {
-    const icon = data.correct === data.total ? '✓' : (data.correct > 0 ? '~' : '✗');
+    const icon = data.correct === data.total ? '✓' : (data.correct > 0 ? '✓/✗' : '✗');
     const iconClass = data.correct === data.total ? 'color: var(--color-success)' :
                       (data.correct > 0 ? 'color: var(--color-accent)' : 'color: var(--color-error)');
     breakdownHTML += `

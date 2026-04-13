@@ -626,7 +626,9 @@ section('mixed templates — no collinear fake vertices', () => {
     const expected = [
       'generateHouse', 'generateRectTrapezoid', 'generateRectTriangleSide',
       'generateTrapezoidTriangle', 'generateParaTriangle', 'generateTower',
-      'generateRectObtuseTriangle'
+      'generateRectObtuseTriangle', 'generateTrapRect', 'generateParaRect',
+      'generateDoubleTriangle', 'generateRectTriBoth', 'generateTrapTrap',
+      'generateParaTrap', 'generateStepShape', 'generateTriTrapTri'
     ].sort();
     assertEq(names.length, expected.length);
     for (let i = 0; i < expected.length; i++) assertEq(names[i], expected[i]);

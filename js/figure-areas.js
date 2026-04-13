@@ -999,6 +999,364 @@ function generateRectObtuseTriangle() {
   return null;
 }
 
+// Trapezoid on top + rectangle on bottom (inverse of rectTrap).
+function generateTrapRect() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w = randInt(4, 6);       // rect width = trap longer base
+    const h1 = randInt(2, 3);      // rect height
+    const h2 = randInt(2, 3);      // trap height
+    const b = randInt(2, w - 1);   // trap shorter base
+    if (h1 + h2 > GRID_SIZE) continue;
+    if (((w + b) * h2) % 2 !== 0) continue;
+
+    const diff = w - b;
+    const leftOff = Math.floor(diff / 2);
+    const rightOff = diff - leftOff;
+
+    const x0 = randInt(0, GRID_SIZE - w);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    return {
+      figure: 'mixed', template: 'trapRect',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + w, y: y0 },
+        { x: x0 + w, y: y0 + h1 },
+        { x: x0 + w - rightOff, y: y0 + h1 + h2 },
+        { x: x0 + leftOff, y: y0 + h1 + h2 },
+        { x: x0, y: y0 + h1 }
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [w, h1], formulaType: 'rect', area: w * h1 },
+        { label: 'Трапец', dims: [w, b, h2], formulaType: 'trap', area: (w + b) * h2 / 2 }
+      ],
+      sharedEdges: [[{ x: x0, y: y0 + h1 }, { x: x0 + w, y: y0 + h1 }]],
+      subCentroids: [
+        { x: x0 + w / 2, y: y0 + h1 / 2 },
+        { x: x0 + w / 2, y: y0 + h1 + h2 / 2 }
+      ],
+      totalArea: w * h1 + (w + b) * h2 / 2
+    };
+  }
+  return null;
+}
+
+// Parallelogram on top + rectangle on bottom.
+function generateParaRect() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(3, 5);
+    const h1 = randInt(2, 3);       // rect height
+    const h2 = randInt(2, 3);       // para height
+    const off = (Math.random() < 0.5 ? 1 : -1) * randInt(1, 2);
+    if (h1 + h2 > GRID_SIZE) continue;
+
+    const xMin = Math.min(0, off);
+    const xMax = Math.max(base, base + off);
+    const x0min = -xMin;
+    const x0max = GRID_SIZE - xMax;
+    if (x0min > x0max) continue;
+    const x0 = randInt(x0min, x0max);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    return {
+      figure: 'mixed', template: 'paraRect',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + base, y: y0 },
+        { x: x0 + base, y: y0 + h1 },
+        { x: x0 + base + off, y: y0 + h1 + h2 },
+        { x: x0 + off, y: y0 + h1 + h2 },
+        { x: x0, y: y0 + h1 }
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [base, h1], formulaType: 'rect', area: base * h1 },
+        { label: 'Успоредник', dims: [base, h2], formulaType: 'para', area: base * h2 }
+      ],
+      sharedEdges: [[{ x: x0, y: y0 + h1 }, { x: x0 + base, y: y0 + h1 }]],
+      subCentroids: [
+        { x: x0 + base / 2, y: y0 + h1 / 2 },
+        { x: x0 + base / 2 + off / 2, y: y0 + h1 + h2 / 2 }
+      ],
+      totalArea: base * h1 + base * h2
+    };
+  }
+  return null;
+}
+
+// Two triangles sharing a common base (creates a diamond/kite shape).
+function generateDoubleTriangle() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(3, 6);
+    const h1 = randInt(2, 4);   // bottom triangle height
+    const h2 = randInt(2, 4);   // top triangle height
+    if (h1 + h2 > GRID_SIZE) continue;
+    if ((base * h1) % 2 !== 0 || (base * h2) % 2 !== 0) continue;
+    if (base % 2 !== 0) continue; // apex on lattice
+
+    const x0 = randInt(0, GRID_SIZE - base);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+    const midX = x0 + base / 2;
+
+    return {
+      figure: 'mixed', template: 'doubleTriangle',
+      vertices: [
+        { x: midX, y: y0 },                       // bottom apex
+        { x: x0 + base, y: y0 + h1 },             // right of shared base
+        { x: midX, y: y0 + h1 + h2 },             // top apex
+        { x: x0, y: y0 + h1 }                     // left of shared base
+      ],
+      subParts: [
+        { label: 'Триъгълник ①', dims: [base, h1], formulaType: 'tri', area: (base * h1) / 2 },
+        { label: 'Триъгълник ②', dims: [base, h2], formulaType: 'tri', area: (base * h2) / 2 }
+      ],
+      sharedEdges: [[{ x: x0, y: y0 + h1 }, { x: x0 + base, y: y0 + h1 }]],
+      subCentroids: [
+        { x: midX, y: y0 + h1 / 3 },
+        { x: midX, y: y0 + h1 + h2 / 3 }
+      ],
+      totalArea: (base * h1) / 2 + (base * h2) / 2
+    };
+  }
+  return null;
+}
+
+// Rectangle with triangles on left and right sides (hexagonal arrow).
+function generateRectTriBoth() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const wR = randInt(2, 4);     // rect width
+    const hR = randInt(3, 5);     // rect & triangle height
+    const wL = randInt(1, 3);     // left triangle protrusion
+    const wRt = randInt(1, 3);    // right triangle protrusion
+    if (wL + wR + wRt > GRID_SIZE) continue;
+    if ((wL * hR) % 2 !== 0 || (wRt * hR) % 2 !== 0) continue;
+    if (hR % 2 !== 0) continue;   // apex at mid-height on lattice
+
+    const x0 = randInt(wL, GRID_SIZE - wR - wRt);
+    const y0 = randInt(0, GRID_SIZE - hR);
+    const midY = y0 + hR / 2;
+
+    return {
+      figure: 'mixed', template: 'rectTriBoth',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + wR, y: y0 },
+        { x: x0 + wR + wRt, y: midY },
+        { x: x0 + wR, y: y0 + hR },
+        { x: x0, y: y0 + hR },
+        { x: x0 - wL, y: midY }
+      ],
+      subParts: [
+        { label: 'Правоъгълник', dims: [wR, hR], formulaType: 'rect', area: wR * hR },
+        { label: 'Триъгълник (ляв)', dims: [hR, wL], formulaType: 'tri', area: (wL * hR) / 2 },
+        { label: 'Триъгълник (десен)', dims: [hR, wRt], formulaType: 'tri', area: (wRt * hR) / 2 }
+      ],
+      sharedEdges: [
+        [{ x: x0, y: y0 }, { x: x0, y: y0 + hR }],
+        [{ x: x0 + wR, y: y0 }, { x: x0 + wR, y: y0 + hR }]
+      ],
+      subCentroids: [
+        { x: x0 + wR / 2, y: y0 + hR / 2 },
+        { x: x0 - wL / 3, y: midY },
+        { x: x0 + wR + wRt / 3, y: midY }
+      ],
+      totalArea: wR * hR + (wL * hR) / 2 + (wRt * hR) / 2
+    };
+  }
+  return null;
+}
+
+// Two trapezoids stacked: wider bases touching, narrower ends outward.
+function generateTrapTrap() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const a = randInt(4, 7);       // shared (wider) base
+    const b1 = randInt(2, a - 1); // top trap shorter base
+    const b2 = randInt(2, a - 1); // bottom trap shorter base
+    const h1 = randInt(2, 3);
+    const h2 = randInt(2, 3);
+    if (h1 + h2 > GRID_SIZE) continue;
+    if (((a + b1) * h1) % 2 !== 0 || ((a + b2) * h2) % 2 !== 0) continue;
+
+    const d1 = a - b1;
+    const l1 = Math.floor(d1 / 2), r1 = d1 - l1;
+    const d2 = a - b2;
+    const l2 = Math.floor(d2 / 2), r2 = d2 - l2;
+
+    const x0 = randInt(0, GRID_SIZE - a);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    return {
+      figure: 'mixed', template: 'trapTrap',
+      vertices: [
+        { x: x0 + l2, y: y0 },
+        { x: x0 + a - r2, y: y0 },
+        { x: x0 + a, y: y0 + h2 },
+        { x: x0 + a - r1, y: y0 + h2 + h1 },
+        { x: x0 + l1, y: y0 + h2 + h1 },
+        { x: x0, y: y0 + h2 }
+      ],
+      subParts: [
+        { label: 'Трапец ①', dims: [a, b2, h2], formulaType: 'trap', area: (a + b2) * h2 / 2 },
+        { label: 'Трапец ②', dims: [a, b1, h1], formulaType: 'trap', area: (a + b1) * h1 / 2 }
+      ],
+      sharedEdges: [[{ x: x0, y: y0 + h2 }, { x: x0 + a, y: y0 + h2 }]],
+      subCentroids: [
+        { x: x0 + a / 2, y: y0 + h2 / 2 },
+        { x: x0 + a / 2, y: y0 + h2 + h1 / 2 }
+      ],
+      totalArea: (a + b2) * h2 / 2 + (a + b1) * h1 / 2
+    };
+  }
+  return null;
+}
+
+// Parallelogram on bottom + trapezoid on top.
+function generateParaTrap() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(4, 6);
+    const h1 = randInt(2, 3);      // para height
+    const h2 = randInt(2, 3);      // trap height
+    const offMag = randInt(1, 2);
+    const off = (Math.random() < 0.5 ? 1 : -1) * offMag;
+    const b = randInt(2, base - 1); // trap shorter base
+    if (h1 + h2 > GRID_SIZE) continue;
+    if (((base + b) * h2) % 2 !== 0) continue;
+
+    const diff = base - b;
+    const lOff = Math.floor(diff / 2), rOff = diff - lOff;
+
+    const xMin = Math.min(0, off);
+    const xMax = Math.max(base, base + off);
+    const x0min = -xMin;
+    const x0max = GRID_SIZE - xMax;
+    if (x0min > x0max) continue;
+    const x0 = randInt(x0min, x0max);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    return {
+      figure: 'mixed', template: 'paraTrap',
+      vertices: [
+        { x: x0, y: y0 },
+        { x: x0 + base, y: y0 },
+        { x: x0 + base + off, y: y0 + h1 },
+        { x: x0 + base + off - rOff, y: y0 + h1 + h2 },
+        { x: x0 + off + lOff, y: y0 + h1 + h2 },
+        { x: x0 + off, y: y0 + h1 }
+      ],
+      subParts: [
+        { label: 'Успоредник', dims: [base, h1], formulaType: 'para', area: base * h1 },
+        { label: 'Трапец', dims: [base, b, h2], formulaType: 'trap', area: (base + b) * h2 / 2 }
+      ],
+      sharedEdges: [[{ x: x0 + off, y: y0 + h1 }, { x: x0 + base + off, y: y0 + h1 }]],
+      subCentroids: [
+        { x: x0 + base / 2 + off / 2, y: y0 + h1 / 2 },
+        { x: x0 + off + base / 2, y: y0 + h1 + h2 / 2 }
+      ],
+      totalArea: base * h1 + (base + b) * h2 / 2
+    };
+  }
+  return null;
+}
+
+// Two rectangles of different widths stacked (step/L shape). The wider one
+// is on the bottom, aligned to one side, creating an L-step silhouette.
+function generateStepShape() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w1 = randInt(4, 7);    // bottom (wider)
+    const w2 = randInt(2, w1 - 1); // top (narrower)
+    const h1 = randInt(2, 3);
+    const h2 = randInt(2, 3);
+    if (h1 + h2 > GRID_SIZE || w1 > GRID_SIZE) continue;
+
+    const alignLeft = Math.random() < 0.5;
+    const x0 = randInt(0, GRID_SIZE - w1);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2);
+
+    const verts = alignLeft ? [
+      { x: x0, y: y0 },
+      { x: x0 + w1, y: y0 },
+      { x: x0 + w1, y: y0 + h1 },
+      { x: x0 + w2, y: y0 + h1 },
+      { x: x0 + w2, y: y0 + h1 + h2 },
+      { x: x0, y: y0 + h1 + h2 }
+    ] : [
+      { x: x0, y: y0 },
+      { x: x0 + w1, y: y0 },
+      { x: x0 + w1, y: y0 + h1 + h2 },
+      { x: x0 + w1 - w2, y: y0 + h1 + h2 },
+      { x: x0 + w1 - w2, y: y0 + h1 },
+      { x: x0, y: y0 + h1 }
+    ];
+
+    return {
+      figure: 'mixed', template: 'stepShape',
+      vertices: verts,
+      subParts: [
+        { label: 'Правоъгълник ①', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
+        { label: 'Правоъгълник ②', dims: [w2, h2], formulaType: 'rect', area: w2 * h2 }
+      ],
+      sharedEdges: alignLeft
+        ? [[{ x: x0, y: y0 + h1 }, { x: x0 + w2, y: y0 + h1 }]]
+        : [[{ x: x0 + w1 - w2, y: y0 + h1 }, { x: x0 + w1, y: y0 + h1 }]],
+      subCentroids: alignLeft
+        ? [{ x: x0 + w1 / 2, y: y0 + h1 / 2 }, { x: x0 + w2 / 2, y: y0 + h1 + h2 / 2 }]
+        : [{ x: x0 + w1 / 2, y: y0 + h1 / 2 }, { x: x0 + w1 - w2 / 2, y: y0 + h1 + h2 / 2 }],
+      totalArea: w1 * h1 + w2 * h2
+    };
+  }
+  return null;
+}
+
+// Triangle at bottom + trapezoid in middle + triangle at top (3-part symmetric).
+function generateTriTrapTri() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const a = randInt(4, 7);       // trapezoid longer base
+    const b = randInt(2, a - 2);   // trapezoid shorter base
+    const h1 = randInt(2, 3);      // bottom triangle
+    const h2 = randInt(1, 3);      // trapezoid
+    const h3 = randInt(2, 3);      // top triangle
+    if (h1 + h2 + h3 > GRID_SIZE) continue;
+    if ((a * h1) % 2 !== 0 || ((a + b) * h2) % 2 !== 0 || (b * h3) % 2 !== 0) continue;
+    if (a % 2 !== 0 || b % 2 !== 0) continue;
+
+    const diff = a - b;
+    const lOff = Math.floor(diff / 2), rOff = diff - lOff;
+    if (lOff === 0 || rOff === 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - a);
+    const y0 = randInt(0, GRID_SIZE - h1 - h2 - h3);
+    const botApex = x0 + a / 2;
+    const topApex = x0 + lOff + b / 2;
+
+    return {
+      figure: 'mixed', template: 'triTrapTri',
+      vertices: [
+        { x: botApex, y: y0 },                         // bottom apex
+        { x: x0 + a, y: y0 + h1 },                     // trap BR
+        { x: x0 + a - rOff, y: y0 + h1 + h2 },         // trap TR
+        { x: topApex, y: y0 + h1 + h2 + h3 },           // top apex
+        { x: x0 + lOff, y: y0 + h1 + h2 },              // trap TL
+        { x: x0, y: y0 + h1 }                           // trap BL
+      ],
+      subParts: [
+        { label: 'Триъгълник ①', dims: [a, h1], formulaType: 'tri', area: (a * h1) / 2 },
+        { label: 'Трапец', dims: [a, b, h2], formulaType: 'trap', area: (a + b) * h2 / 2 },
+        { label: 'Триъгълник ②', dims: [b, h3], formulaType: 'tri', area: (b * h3) / 2 }
+      ],
+      sharedEdges: [
+        [{ x: x0, y: y0 + h1 }, { x: x0 + a, y: y0 + h1 }],
+        [{ x: x0 + lOff, y: y0 + h1 + h2 }, { x: x0 + a - rOff, y: y0 + h1 + h2 }]
+      ],
+      subCentroids: [
+        { x: botApex, y: y0 + h1 / 3 },
+        { x: x0 + a / 2, y: y0 + h1 + h2 / 2 },
+        { x: topApex, y: y0 + h1 + h2 + h3 / 3 }
+      ],
+      totalArea: (a * h1) / 2 + (a + b) * h2 / 2 + (b * h3) / 2
+    };
+  }
+  return null;
+}
+
 const MIXED_TEMPLATES = [
   generateHouse,
   generateRectTrapezoid,
@@ -1006,7 +1364,15 @@ const MIXED_TEMPLATES = [
   generateTrapezoidTriangle,
   generateParaTriangle,
   generateTower,
-  generateRectObtuseTriangle
+  generateRectObtuseTriangle,
+  generateTrapRect,
+  generateParaRect,
+  generateDoubleTriangle,
+  generateRectTriBoth,
+  generateTrapTrap,
+  generateParaTrap,
+  generateStepShape,
+  generateTriTrapTri
 ];
 
 function generateMixed() {
@@ -1080,14 +1446,17 @@ function transformFigure(task) {
     out[k] = transformDeep(v, fn);
   }
   // Enforce counter-clockwise A→B→C→D vertex ordering on every task, then
-  // rotate the starting vertex randomly so the label `A` can land on any
-  // corner. For triangles this makes the apex reachable at positions 0, 1,
-  // or 2 — i.e. h_a, h_b, and h_c are all achievable.
+  // rotate so label `A` starts at the leftmost vertex (ties broken by
+  // bottommost, i.e. smallest y) and proceeds counter-clockwise (→ right).
   if (Array.isArray(out.vertices) && out.vertices.length >= 3) {
     out.vertices = toCounterClockwise(out.vertices);
-    const shift = Math.floor(Math.random() * out.vertices.length);
-    if (shift > 0) {
-      out.vertices = out.vertices.slice(shift).concat(out.vertices.slice(0, shift));
+    let leftIdx = 0;
+    for (let i = 1; i < out.vertices.length; i++) {
+      const v = out.vertices[i], best = out.vertices[leftIdx];
+      if (v.x < best.x || (v.x === best.x && v.y < best.y)) leftIdx = i;
+    }
+    if (leftIdx > 0) {
+      out.vertices = out.vertices.slice(leftIdx).concat(out.vertices.slice(0, leftIdx));
     }
   }
   return out;
@@ -1360,16 +1729,10 @@ function drawEdgeWithLabel(svg, start, end, labelText, color, centerPt) {
 }
 
 // Draws the height line + foot dot + label. If `dashed` is true, the line is dashed.
-// The line is normalized so that `top` is always the upper (higher grid y)
-// endpoint when the line is vertical, or the left (smaller x) endpoint when
-// horizontal. This keeps label placement and visual direction consistent
-// regardless of which way the post-transform polygon happens to face.
+// `top` is the apex vertex, `foot` is the perpendicular point on the base.
+// The geometric meaning is preserved (height goes from apex down to base)
+// regardless of the shape's screen orientation after transforms.
 function drawHeightWithLabel(svg, top, foot, labelText, color, dashed, baseStart, baseEnd) {
-  if (top.x === foot.x && top.y < foot.y) {
-    [top, foot] = [foot, top];
-  } else if (top.y === foot.y && top.x > foot.x) {
-    [top, foot] = [foot, top];
-  }
   const attrs = {
     x1: px(top.x), y1: py(top.y),
     x2: px(foot.x), y2: py(foot.y),
@@ -1976,7 +2339,15 @@ const MODULES = {
         trapTriangle: 'Трапец + триъгълник',
         paraTriangle: 'Успоредник + триъгълник',
         tower: 'Трапец + правоъгълник + триъгълник',
-        rectObtuseTriangle: 'Правоъгълник + тъпоъгълен триъгълник'
+        rectObtuseTriangle: 'Правоъгълник + тъпоъгълен триъгълник',
+        trapRect: 'Трапец + правоъгълник',
+        paraRect: 'Успоредник + правоъгълник',
+        doubleTriangle: 'Триъгълник + триъгълник',
+        rectTriBoth: 'Триъгълник + правоъгълник + триъгълник',
+        trapTrap: 'Трапец + трапец',
+        paraTrap: 'Успоредник + трапец',
+        stepShape: 'Правоъгълник + правоъгълник',
+        triTrapTri: 'Триъгълник + трапец + триъгълник'
       };
       return labels[task.template] || 'Смесена фигура';
     }
