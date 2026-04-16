@@ -2398,6 +2398,14 @@ function showSettingsScreen() {
     </div>
   `;
 
+  // Limit cm input to max 2 decimal places as user types
+  $('#cm-per-square').addEventListener('input', (e) => {
+    const raw = e.target.value.replace(',', '.');
+    const match = raw.match(/^(\d*\.?\d{0,2})/);
+    const clamped = match ? match[1].replace('.', ',') : '';
+    if (e.target.value !== clamped) e.target.value = clamped;
+  });
+
   // Restore last selection
   $('#figure-type').value = config.figureType;
   $('#figure-type').addEventListener('change', (e) => {
@@ -2412,7 +2420,7 @@ function showSettingsScreen() {
 
     const figureType = $('#figure-type').value;
     const count = parseInt($('#task-count').value);
-    const cm = parseFloat($('#cm-per-square').value.replace(',', '.'));
+    const cm = Math.round(parseFloat($('#cm-per-square').value.replace(',', '.')) * 100) / 100;
 
     if (!count || count < 1 || count > 100) {
       $('#task-count').style.borderColor = 'var(--color-error)';
