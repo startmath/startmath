@@ -1386,7 +1386,8 @@ function allInnerInsideOuter(inner, outer) {
   return pointInPolygon({ x: cx, y: cy }, outer);
 }
 
-// Rectangle with a smaller rectangle removed (sharing one corner).
+// Rectangle with a smaller rectangle removed. Inner can be anywhere inside,
+// at a corner, or along an edge — placement is random.
 function generateRectMinusRect() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const w1 = randInt(4, 7), h1 = randInt(4, 7);
@@ -1395,14 +1396,16 @@ function generateRectMinusRect() {
 
     const x0 = randInt(0, GRID_SIZE - w1);
     const y0 = randInt(0, GRID_SIZE - h1);
-    // Inner rect shares bottom-left corner
+    // Random inner offset within the outer rect
+    const ix = x0 + randInt(0, w1 - w2);
+    const iy = y0 + randInt(0, h1 - h2);
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
       { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + w2, y: y0 },
-      { x: x0 + w2, y: y0 + h2 }, { x: x0, y: y0 + h2 }
+      { x: ix, y: iy }, { x: ix + w2, y: iy },
+      { x: ix + w2, y: iy + h2 }, { x: ix, y: iy + h2 }
     ];
     return {
       figure: 'mixed', template: 'rectMinusRect', subtraction: true,
@@ -1413,7 +1416,7 @@ function generateRectMinusRect() {
       ],
       subCentroids: [
         { x: x0 + w1 / 2, y: y0 + h1 / 2 },
-        { x: x0 + w2 / 2, y: y0 + h2 / 2 }
+        { x: ix + w2 / 2, y: iy + h2 / 2 }
       ],
       totalArea: w1 * h1 - w2 * h2
     };
@@ -1421,29 +1424,31 @@ function generateRectMinusRect() {
   return null;
 }
 
-// Rectangle with a triangle removed (triangle shares one side of the rect).
+// Rectangle with a triangle removed. Triangle can be anywhere inside,
+// or touching/sharing a side.
 function generateRectMinusTri() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const w1 = randInt(4, 7), h1 = randInt(4, 7);
     if (w1 > GRID_SIZE || h1 > GRID_SIZE) continue;
-    // Triangle base along the bottom side of the rect
     const tBase = randInt(2, w1);
     const tHeight = randInt(2, h1 - 1);
     if ((tBase * tHeight) % 2 !== 0) continue;
+    if (tBase % 2 !== 0) continue;
 
     const x0 = randInt(0, GRID_SIZE - w1);
     const y0 = randInt(0, GRID_SIZE - h1);
-    // Triangle starts at bottom-left corner, base along bottom
-    const apexX = x0 + Math.floor(tBase / 2);
-    if (tBase % 2 !== 0) continue; // apex on lattice
+    // Random horizontal offset for the triangle base within the rect
+    const tX = x0 + randInt(0, w1 - tBase);
+    const tY = y0 + randInt(0, h1 - tHeight);
+    const apexX = tX + tBase / 2;
 
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
       { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + tBase, y: y0 },
-      { x: apexX, y: y0 + tHeight }
+      { x: tX, y: tY }, { x: tX + tBase, y: tY },
+      { x: apexX, y: tY + tHeight }
     ];
     return {
       figure: 'mixed', template: 'rectMinusTri', subtraction: true,
@@ -1454,7 +1459,7 @@ function generateRectMinusTri() {
       ],
       subCentroids: [
         { x: x0 + w1 / 2, y: y0 + h1 / 2 },
-        { x: (x0 + x0 + tBase + apexX) / 3, y: (y0 + y0 + y0 + tHeight) / 3 }
+        { x: (tX + tX + tBase + apexX) / 3, y: (tY + tY + tY + tHeight) / 3 }
       ],
       totalArea: w1 * h1 - (tBase * tHeight) / 2
     };
@@ -1462,33 +1467,50 @@ function generateRectMinusTri() {
   return null;
 }
 
-// Triangle with a smaller triangle removed (sharing part of the base).
+// Triangle with a smaller triangle removed. Inner can share a side or float
+// freely inside. We use the `pointInPolygon` check to verify containment.
 function generateTriMinusTri() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const base1 = randInt(4, 8), h1 = randInt(4, 7);
     if (base1 > GRID_SIZE || h1 > GRID_SIZE) continue;
-    if (base1 % 2 !== 0) continue;
-    if ((base1 * h1) % 2 !== 0) continue;
+    if (base1 % 2 !== 0 || (base1 * h1) % 2 !== 0) continue;
 
     const base2 = randInt(2, base1 - 1);
     const h2 = randInt(2, h1 - 1);
-    if (base2 % 2 !== 0) continue;
-    if ((base2 * h2) % 2 !== 0) continue;
+    if (base2 % 2 !== 0 || (base2 * h2) % 2 !== 0) continue;
 
     const x0 = randInt(0, GRID_SIZE - base1);
     const y0 = randInt(0, GRID_SIZE - h1);
     const apex1X = x0 + base1 / 2;
-    // Inner triangle shares left corner of base
-    const apex2X = x0 + base2 / 2;
+
+    // Random offset for inner triangle: base can start anywhere along the
+    // outer base, or float up. Check all 3 inner vertices are inside outer.
+    const maxTX = x0 + base1 - base2;
+    const tX = randInt(x0, maxTX);
+    const maxTY = y0 + h1 - h2;
+    const tY = randInt(y0, maxTY);
+    const apex2X = tX + base2 / 2;
 
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + base1, y: y0 },
       { x: apex1X, y: y0 + h1 }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + base2, y: y0 },
-      { x: apex2X, y: y0 + h2 }
+      { x: tX, y: tY }, { x: tX + base2, y: tY },
+      { x: apex2X, y: tY + h2 }
     ];
+    // Verify all inner vertices are inside the outer triangle
+    const allInside = innerV.every(v => {
+      // Check via barycentric / edge equations for the outer triangle
+      // At height y, the outer triangle spans from leftEdge to rightEdge
+      const dy = v.y - y0;
+      if (dy < 0 || dy > h1) return false;
+      const leftEdge = x0 + (apex1X - x0) * dy / h1;
+      const rightEdge = x0 + base1 - (x0 + base1 - apex1X) * dy / h1;
+      return v.x >= leftEdge - 0.001 && v.x <= rightEdge + 0.001;
+    });
+    if (!allInside) continue;
+
     return {
       figure: 'mixed', template: 'triMinusTri', subtraction: true,
       vertices: outerV, innerVertices: innerV,
@@ -1498,7 +1520,7 @@ function generateTriMinusTri() {
       ],
       subCentroids: [
         { x: apex1X, y: y0 + h1 / 3 },
-        { x: apex2X, y: y0 + h2 / 3 }
+        { x: apex2X, y: tY + h2 / 3 }
       ],
       totalArea: (base1 * h1) / 2 - (base2 * h2) / 2
     };
@@ -1506,7 +1528,7 @@ function generateTriMinusTri() {
   return null;
 }
 
-// Rectangle with a parallelogram removed (para shares bottom side).
+// Rectangle with a parallelogram removed. Para floats freely inside the rect.
 function generateRectMinusPara() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const w1 = randInt(5, 7), h1 = randInt(4, 7);
@@ -1514,21 +1536,32 @@ function generateRectMinusPara() {
     const pBase = randInt(2, w1 - 1);
     const pH = randInt(2, h1 - 1);
     const pOff = randInt(1, 2) * (Math.random() < 0.5 ? 1 : -1);
-    // Check para fits in rect
-    const pMinX = Math.min(0, pOff);
-    const pMaxX = Math.max(pBase, pBase + pOff);
-    if (pMaxX > w1 || pMinX < 0) continue;
+    // Para bounding box width
+    const pBBoxW = Math.max(pBase, pBase + pOff) - Math.min(0, pOff);
+    if (pBBoxW > w1 || pH > h1) continue;
 
     const x0 = randInt(0, GRID_SIZE - w1);
     const y0 = randInt(0, GRID_SIZE - h1);
+    // Random offset within the rect for the para's bounding box
+    const pBL = Math.min(0, pOff); // para leftmost relative coord
+    const dxMax = w1 - pBBoxW;
+    const dyMax = h1 - pH;
+    const dx = randInt(0, dxMax);
+    const dy = randInt(0, dyMax);
+    const pX = x0 + dx - pBL; // bottom-left of para base
+
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
       { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + pBase, y: y0 },
-      { x: x0 + pBase + pOff, y: y0 + pH }, { x: x0 + pOff, y: y0 + pH }
+      { x: pX, y: y0 + dy }, { x: pX + pBase, y: y0 + dy },
+      { x: pX + pBase + pOff, y: y0 + dy + pH }, { x: pX + pOff, y: y0 + dy + pH }
     ];
+    // Quick bounds check: all inner vertices in outer rect
+    const ok = innerV.every(v => v.x >= x0 && v.x <= x0 + w1 && v.y >= y0 && v.y <= y0 + h1);
+    if (!ok) continue;
+
     return {
       figure: 'mixed', template: 'rectMinusPara', subtraction: true,
       vertices: outerV, innerVertices: innerV,
@@ -1538,7 +1571,7 @@ function generateRectMinusPara() {
       ],
       subCentroids: [
         { x: x0 + w1 / 2, y: y0 + h1 / 2 },
-        { x: x0 + pBase / 2 + pOff / 2, y: y0 + pH / 2 }
+        { x: pX + pBase / 2 + pOff / 2, y: y0 + dy + pH / 2 }
       ],
       totalArea: w1 * h1 - pBase * pH
     };
@@ -1546,30 +1579,37 @@ function generateRectMinusPara() {
   return null;
 }
 
-// Rectangle with a trapezoid removed (trap shares bottom side of rect).
+// Rectangle with a trapezoid removed. Trap floats freely inside the rect.
 function generateRectMinusTrap() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const w1 = randInt(5, 8), h1 = randInt(4, 7);
     if (w1 > GRID_SIZE || h1 > GRID_SIZE) continue;
-    const a = w1;               // trap longer base = full bottom of rect
-    const b = randInt(2, a - 2); // trap shorter base
+    const a = randInt(3, w1 - 1);    // trap longer base
+    const b = randInt(2, a - 1);      // trap shorter base
     const tH = randInt(2, h1 - 1);
     if (((a + b) * tH) % 2 !== 0) continue;
     const diff = a - b;
     const lOff = Math.floor(diff / 2);
     const rOff = diff - lOff;
     if (lOff === 0 || rOff === 0) continue;
+    if (a > w1 || tH > h1) continue;
 
     const x0 = randInt(0, GRID_SIZE - w1);
     const y0 = randInt(0, GRID_SIZE - h1);
+    const tx = x0 + randInt(0, w1 - a);
+    const ty = y0 + randInt(0, h1 - tH);
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
       { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + a, y: y0 },
-      { x: x0 + a - rOff, y: y0 + tH }, { x: x0 + lOff, y: y0 + tH }
+      { x: tx, y: ty }, { x: tx + a, y: ty },
+      { x: tx + a - rOff, y: ty + tH }, { x: tx + lOff, y: ty + tH }
     ];
+    // Verify inner fits in outer rect
+    const ok = innerV.every(v => v.x >= x0 && v.x <= x0 + w1 && v.y >= y0 && v.y <= y0 + h1);
+    if (!ok) continue;
+
     return {
       figure: 'mixed', template: 'rectMinusTrap', subtraction: true,
       vertices: outerV, innerVertices: innerV,
@@ -1579,7 +1619,7 @@ function generateRectMinusTrap() {
       ],
       subCentroids: [
         { x: x0 + w1 / 2, y: y0 + h1 / 2 },
-        { x: x0 + a / 2, y: y0 + tH / 2 }
+        { x: tx + a / 2, y: ty + tH / 2 }
       ],
       totalArea: w1 * h1 - (a + b) * tH / 2
     };
@@ -1587,7 +1627,8 @@ function generateRectMinusTrap() {
   return null;
 }
 
-// Parallelogram with a triangle removed (tri shares one side of the para).
+// Parallelogram with a triangle removed. Triangle placed randomly inside;
+// `pointInPolygon` verifies containment.
 function generateParaMinusTri() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const base = randInt(4, 6), pH = randInt(3, 5);
@@ -1599,10 +1640,9 @@ function generateParaMinusTri() {
     const x0max = GRID_SIZE - xMax;
     if (x0min > x0max) continue;
 
-    const tBase = randInt(2, base);
+    const tBase = randInt(2, base - 1);
     const tH = randInt(2, pH - 1);
     if ((tBase * tH) % 2 !== 0 || tBase % 2 !== 0) continue;
-    const apexX = tBase / 2; // relative to para bottom-left
 
     const x0 = randInt(x0min, x0max);
     const y0 = randInt(0, GRID_SIZE - pH);
@@ -1610,10 +1650,32 @@ function generateParaMinusTri() {
       { x: x0, y: y0 }, { x: x0 + base, y: y0 },
       { x: x0 + base + off, y: y0 + pH }, { x: x0 + off, y: y0 + pH }
     ];
+
+    // At height dy within the para, the left edge is at x0 + off*dy/pH
+    // and the right edge is at x0 + base + off*dy/pH. Width is always `base`.
+    // Random dy for inner triangle base, then random x within that row.
+    const dy = randInt(0, pH - tH);
+    const rowLeft = x0 + Math.ceil(off * dy / pH);
+    const rowRight = x0 + base + Math.floor(off * dy / pH);
+    const rowWidth = rowRight - rowLeft;
+    if (tBase > rowWidth) continue;
+    const tX = randInt(rowLeft, rowRight - tBase);
+    const tY = y0 + dy;
+    const apexDy = dy + tH;
+    const apexRowLeft = x0 + Math.ceil(off * apexDy / pH);
+    const apexRowRight = x0 + base + Math.floor(off * apexDy / pH);
+    const apexX = tX + tBase / 2;
+    if (apexX < apexRowLeft || apexX > apexRowRight) continue;
+
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + tBase, y: y0 },
-      { x: x0 + apexX, y: y0 + tH }
+      { x: tX, y: tY }, { x: tX + tBase, y: tY },
+      { x: apexX, y: tY + tH }
     ];
+    // Full containment check
+    const ok = innerV.every(v => pointInPolygon(v, outerV) ||
+      outerV.some(ov => ov.x === v.x && ov.y === v.y));
+    if (!ok) continue;
+
     return {
       figure: 'mixed', template: 'paraMinusTri', subtraction: true,
       vertices: outerV, innerVertices: innerV,
@@ -1623,7 +1685,7 @@ function generateParaMinusTri() {
       ],
       subCentroids: [
         { x: x0 + base / 2 + off / 2, y: y0 + pH / 2 },
-        { x: x0 + (0 + tBase + apexX) / 3, y: y0 + tH / 3 }
+        { x: (tX + tX + tBase + apexX) / 3, y: (tY * 2 + tY + tH) / 3 }
       ],
       totalArea: base * pH - (tBase * tH) / 2
     };
@@ -1631,7 +1693,7 @@ function generateParaMinusTri() {
   return null;
 }
 
-// Trapezoid with a triangle removed (tri shares the longer base of trap).
+// Trapezoid with a triangle removed. Triangle placed randomly inside.
 function generateTrapMinusTri() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const a = randInt(5, 8), b = randInt(2, a - 2);
@@ -1645,7 +1707,6 @@ function generateTrapMinusTri() {
     const triBase = randInt(2, a - 1);
     const triH = randInt(2, tH - 1);
     if ((triBase * triH) % 2 !== 0 || triBase % 2 !== 0) continue;
-    const triApexX = triBase / 2;
 
     const x0 = randInt(0, GRID_SIZE - a);
     const y0 = randInt(0, GRID_SIZE - tH);
@@ -1653,9 +1714,24 @@ function generateTrapMinusTri() {
       { x: x0, y: y0 }, { x: x0 + a, y: y0 },
       { x: x0 + a - rOff, y: y0 + tH }, { x: x0 + lOff, y: y0 + tH }
     ];
+
+    // At height dy, the trap spans from x0+lOff*dy/tH to x0+a-rOff*dy/tH
+    const dy = randInt(0, tH - triH);
+    const rowLeft = Math.ceil(x0 + lOff * dy / tH);
+    const rowRight = Math.floor(x0 + a - rOff * dy / tH);
+    if (triBase > rowRight - rowLeft) continue;
+    const tX = randInt(rowLeft, rowRight - triBase);
+    const tY = y0 + dy;
+    const apexX = tX + triBase / 2;
+    // Check apex row
+    const apexDy = dy + triH;
+    const apexLeft = Math.ceil(x0 + lOff * apexDy / tH);
+    const apexRight = Math.floor(x0 + a - rOff * apexDy / tH);
+    if (apexX < apexLeft || apexX > apexRight) continue;
+
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + triBase, y: y0 },
-      { x: x0 + triApexX, y: y0 + triH }
+      { x: tX, y: tY }, { x: tX + triBase, y: tY },
+      { x: apexX, y: tY + triH }
     ];
     return {
       figure: 'mixed', template: 'trapMinusTri', subtraction: true,
@@ -1666,7 +1742,7 @@ function generateTrapMinusTri() {
       ],
       subCentroids: [
         { x: x0 + a / 2, y: y0 + tH / 2 },
-        { x: x0 + triApexX, y: y0 + triH / 3 }
+        { x: apexX, y: tY + triH / 3 }
       ],
       totalArea: (a + b) * tH / 2 - (triBase * triH) / 2
     };
@@ -1674,34 +1750,41 @@ function generateTrapMinusTri() {
   return null;
 }
 
-// Triangle with a rectangle removed (rect base on the triangle's base).
+// Triangle with a rectangle removed. Rect placed randomly inside the triangle.
 function generateTriMinusRect() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const base = randInt(4, 8), h = randInt(4, 7);
     if (base > GRID_SIZE || h > GRID_SIZE) continue;
-    if (base % 2 !== 0) continue;
-    if ((base * h) % 2 !== 0) continue;
+    if (base % 2 !== 0 || (base * h) % 2 !== 0) continue;
     const rW = randInt(2, base - 1), rH = randInt(1, h - 2);
 
     const x0 = randInt(0, GRID_SIZE - base);
     const y0 = randInt(0, GRID_SIZE - h);
     const apexX = x0 + base / 2;
+
+    // Random vertical offset for the rect within the triangle
+    const dy = randInt(0, h - rH);
+    // At height dy, the triangle spans from leftEdge to rightEdge
+    const leftAtDy = x0 + (apexX - x0) * dy / h;
+    const rightAtDy = x0 + base - (x0 + base - apexX) * dy / h;
+    // At height dy+rH
+    const leftAtDyRH = x0 + (apexX - x0) * (dy + rH) / h;
+    const rightAtDyRH = x0 + base - (x0 + base - apexX) * (dy + rH) / h;
+    // The rect must fit within the narrower of the two horizontal slices
+    const minLeft = Math.ceil(Math.max(leftAtDy, leftAtDyRH));
+    const maxRight = Math.floor(Math.min(rightAtDy, rightAtDyRH));
+    if (rW > maxRight - minLeft) continue;
+    const rX = randInt(minLeft, maxRight - rW);
+    const rY = y0 + dy;
+
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + base, y: y0 },
       { x: apexX, y: y0 + h }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + rW, y: y0 },
-      { x: x0 + rW, y: y0 + rH }, { x: x0, y: y0 + rH }
+      { x: rX, y: rY }, { x: rX + rW, y: rY },
+      { x: rX + rW, y: rY + rH }, { x: rX, y: rY + rH }
     ];
-    // Check rect fits inside triangle: top-right corner must be inside
-    // The triangle's left edge goes from (x0,y0) to (apexX,y0+h).
-    // At y = y0+rH, the left edge x = x0 + (apexX-x0)*rH/h
-    // The right edge at y = y0+rH: x = x0+base - (x0+base-apexX)*rH/h
-    const leftEdgeAtRH = x0 + (apexX - x0) * rH / h;
-    const rightEdgeAtRH = x0 + base - (x0 + base - apexX) * rH / h;
-    if (x0 + rW > rightEdgeAtRH || x0 < leftEdgeAtRH) continue;
-
     return {
       figure: 'mixed', template: 'triMinusRect', subtraction: true,
       vertices: outerV, innerVertices: innerV,
@@ -1711,7 +1794,7 @@ function generateTriMinusRect() {
       ],
       subCentroids: [
         { x: apexX, y: y0 + h / 3 },
-        { x: x0 + rW / 2, y: y0 + rH / 2 }
+        { x: rX + rW / 2, y: rY + rH / 2 }
       ],
       totalArea: (base * h) / 2 - rW * rH
     };
@@ -1719,7 +1802,7 @@ function generateTriMinusRect() {
   return null;
 }
 
-// Trapezoid with a rectangle removed (rect shares the longer base).
+// Trapezoid with a rectangle removed. Rect placed randomly inside.
 function generateTrapMinusRect() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const a = randInt(5, 8), b = randInt(2, a - 2);
@@ -1731,20 +1814,29 @@ function generateTrapMinusRect() {
     if (lOff === 0 || rOff === 0) continue;
 
     const rW = randInt(2, a - 1), rH = randInt(1, tH - 1);
-    // Check rect top-right is inside trapezoid
-    const leftEdgeAtRH = lOff * rH / tH;
-    const rightEdgeAtRH = a - rOff * rH / tH;
-    if (rW > rightEdgeAtRH) continue;
 
     const x0 = randInt(0, GRID_SIZE - a);
     const y0 = randInt(0, GRID_SIZE - tH);
+
+    // Random vertical offset for the rect
+    const dy = randInt(0, tH - rH);
+    const leftAtDy = Math.ceil(x0 + lOff * dy / tH);
+    const rightAtDy = Math.floor(x0 + a - rOff * dy / tH);
+    const leftAtDyRH = Math.ceil(x0 + lOff * (dy + rH) / tH);
+    const rightAtDyRH = Math.floor(x0 + a - rOff * (dy + rH) / tH);
+    const minLeft = Math.max(leftAtDy, leftAtDyRH);
+    const maxRight = Math.min(rightAtDy, rightAtDyRH);
+    if (rW > maxRight - minLeft) continue;
+    const rX = randInt(minLeft, maxRight - rW);
+    const rY = y0 + dy;
+
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + a, y: y0 },
       { x: x0 + a - rOff, y: y0 + tH }, { x: x0 + lOff, y: y0 + tH }
     ];
     const innerV = [
-      { x: x0, y: y0 }, { x: x0 + rW, y: y0 },
-      { x: x0 + rW, y: y0 + rH }, { x: x0, y: y0 + rH }
+      { x: rX, y: rY }, { x: rX + rW, y: rY },
+      { x: rX + rW, y: rY + rH }, { x: rX, y: rY + rH }
     ];
     return {
       figure: 'mixed', template: 'trapMinusRect', subtraction: true,
@@ -1755,7 +1847,7 @@ function generateTrapMinusRect() {
       ],
       subCentroids: [
         { x: x0 + a / 2, y: y0 + tH / 2 },
-        { x: x0 + rW / 2, y: y0 + rH / 2 }
+        { x: rX + rW / 2, y: rY + rH / 2 }
       ],
       totalArea: (a + b) * tH / 2 - rW * rH
     };
@@ -1763,47 +1855,42 @@ function generateTrapMinusRect() {
   return null;
 }
 
-// Parallelogram with a rectangle removed (rect in lower-left corner of para).
+// Parallelogram with a rectangle removed. Rect placed randomly inside.
 function generateParaMinusRect() {
   for (let attempt = 0; attempt < 100; attempt++) {
     const base = randInt(4, 6), pH = randInt(3, 5);
-    const off = randInt(1, 2);  // always lean right so inner rect fits in BL
+    const off = randInt(1, 2) * (Math.random() < 0.5 ? 1 : -1);
     if (base > GRID_SIZE || pH > GRID_SIZE) continue;
-    const xMax = base + off;
-    if (xMax > GRID_SIZE) continue;
+    const xMin = Math.min(0, off);
+    const xMax = Math.max(base, base + off);
+    const x0min = -xMin;
+    const x0max = GRID_SIZE - xMax;
+    if (x0min > x0max) continue;
 
     const rW = randInt(2, base - 1), rH = randInt(1, pH - 1);
-    // At height rH the left edge of para is at x = off * rH / pH
-    // The rect left edge is at x=0 (relative), so check it fits
-    if (off * rH / pH > 0.001) continue;  // left edge must be at x0
 
-    // Actually for para leaning right: bottom-left is at x0, top-left at x0+off.
-    // At y=rH, the left edge is at x0 + off*rH/pH.
-    // For the rect to fit we need x0 + rW <= right edge at rH,
-    // and left edge at rH <= x0 (which only works if off=0, defeating purpose).
-    // Instead: rect shares the bottom side of the para.
-    // The rect must fit within the narrowest horizontal slice, which at rH
-    // is from x0 + off*rH/pH to x0 + base + off*rH/pH.
-    // Since the horizontal extent at any height is always `base`, rect with
-    // rW < base and aligned to the left edge at y=0 works if rW <= base and
-    // the rect top-left at (x0, y0+rH) is inside the para.
-    // Left edge at rH = x0 + off*rH/pH; rect left = x0. Need x0 >= x0 + off*rH/pH
-    // which requires off*rH/pH <= 0. Only works for off=0.
-    // Let's just align rect to start at the bottom-left and shift right a bit
-    // so it stays inside.
-    const leftAtRH = off * rH / pH;
-    const rX = Math.ceil(leftAtRH);  // shift rect right to stay inside
-    if (rX + rW > base) continue;
-
-    const x0 = randInt(0, GRID_SIZE - xMax);
+    const x0 = randInt(x0min, x0max);
     const y0 = randInt(0, GRID_SIZE - pH);
     const outerV = [
       { x: x0, y: y0 }, { x: x0 + base, y: y0 },
       { x: x0 + base + off, y: y0 + pH }, { x: x0 + off, y: y0 + pH }
     ];
+
+    // At height dy, the para left edge is at x0 + off*dy/pH, width = base.
+    const dy = randInt(0, pH - rH);
+    const rowLeft = Math.ceil(x0 + off * dy / pH);
+    const rowLeftRH = Math.ceil(x0 + off * (dy + rH) / pH);
+    const minLeft = Math.max(rowLeft, rowLeftRH);
+    const rowRight = Math.floor(x0 + base + off * dy / pH);
+    const rowRightRH = Math.floor(x0 + base + off * (dy + rH) / pH);
+    const maxRight = Math.min(rowRight, rowRightRH);
+    if (rW > maxRight - minLeft) continue;
+    const rX = randInt(minLeft, maxRight - rW);
+    const rY = y0 + dy;
+
     const innerV = [
-      { x: x0 + rX, y: y0 }, { x: x0 + rX + rW, y: y0 },
-      { x: x0 + rX + rW, y: y0 + rH }, { x: x0 + rX, y: y0 + rH }
+      { x: rX, y: rY }, { x: rX + rW, y: rY },
+      { x: rX + rW, y: rY + rH }, { x: rX, y: rY + rH }
     ];
     return {
       figure: 'mixed', template: 'paraMinusRect', subtraction: true,
@@ -1814,7 +1901,7 @@ function generateParaMinusRect() {
       ],
       subCentroids: [
         { x: x0 + base / 2 + off / 2, y: y0 + pH / 2 },
-        { x: x0 + rX + rW / 2, y: y0 + rH / 2 }
+        { x: rX + rW / 2, y: rY + rH / 2 }
       ],
       totalArea: base * pH - rW * rH
     };
