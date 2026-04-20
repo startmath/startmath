@@ -2262,6 +2262,25 @@ function renderMixedFigure(svg, task) {
   renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
 }
 
+// Tests whether segment (p1→p2) lies entirely on one of the edges of `poly`.
+// Returns true if the segment is collinear with and contained within a polygon edge.
+function segmentOnPolygonEdge(p1, p2, poly) {
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    // Check collinearity: cross products of (a→b) with (a→p1) and (a→p2) must be zero
+    const cross1 = (b.x - a.x) * (p1.y - a.y) - (b.y - a.y) * (p1.x - a.x);
+    const cross2 = (b.x - a.x) * (p2.y - a.y) - (b.y - a.y) * (p2.x - a.x);
+    if (Math.abs(cross1) > 0.001 || Math.abs(cross2) > 0.001) continue;
+    // Collinear — check that both p1 and p2 lie within the segment a→b
+    const abLen2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+    if (abLen2 === 0) continue;
+    const t1 = ((p1.x - a.x) * (b.x - a.x) + (p1.y - a.y) * (b.y - a.y)) / abLen2;
+    const t2 = ((p2.x - a.x) * (b.x - a.x) + (p2.y - a.y) * (b.y - a.y)) / abLen2;
+    if (t1 >= -0.001 && t1 <= 1.001 && t2 >= -0.001 && t2 <= 1.001) return true;
+  }
+  return false;
+}
+
 // Renders a subtraction figure: outer polygon with inner polygon "hole".
 // Only the ring area (outer minus inner) is shaded.
 function renderSubtractionFigure(svg, task) {
@@ -2270,7 +2289,6 @@ function renderSubtractionFigure(svg, task) {
 
   // Build SVG path with evenodd fill: outer CCW + inner CW = hole
   const outerD = outer.map((v, i) => `${i === 0 ? 'M' : 'L'}${px(v.x)},${py(v.y)}`).join(' ') + ' Z';
-  // Reverse inner so winding is opposite
   const innerRev = [...inner].reverse();
   const innerD = innerRev.map((v, i) => `${i === 0 ? 'M' : 'L'}${px(v.x)},${py(v.y)}`).join(' ') + ' Z';
 
@@ -2288,27 +2306,35 @@ function renderSubtractionFigure(svg, task) {
     stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linejoin': 'round'
   }));
 
-  // Stroke inner polygon
-  const innerPts = inner.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
-  svg.appendChild(svgEl('polygon', {
-    points: innerPts, fill: 'none',
-    stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linejoin': 'round',
-    'stroke-dasharray': '6,4'
-  }));
+  // Stroke inner polygon edge-by-edge, skipping edges that lie on an outer edge
+  for (let i = 0; i < inner.length; i++) {
+    const p1 = inner[i], p2 = inner[(i + 1) % inner.length];
+    if (segmentOnPolygonEdge(p1, p2, outer)) continue;
+    svg.appendChild(svgEl('line', {
+      x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
+      stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round'
+    }));
+  }
+
+  // Collect all unique vertices (outer + non-shared inner) for labeling.
+  // Use combined centroid of ALL vertices for consistent label push direction.
+  const allVerts = [...outer, ...inner];
+  const allCx = allVerts.reduce((s, v) => s + v.x, 0) / allVerts.length;
+  const allCy = allVerts.reduce((s, v) => s + v.y, 0) / allVerts.length;
 
   // Label outer vertices A, B, C, …
   const outerLabels = VERTEX_LABELS.slice(0, outer.length);
-  const cx = outer.reduce((s, v) => s + v.x, 0) / outer.length;
-  const cy = outer.reduce((s, v) => s + v.y, 0) / outer.length;
   outer.forEach((v, i) => {
-    const dx = (v.x - cx) * 0.18;
-    const dy = (v.y - cy) * 0.18;
+    let dx = v.x - allCx;
+    let dy = v.y - allCy;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    dx = (dx / len) * 18;
+    dy = (dy / len) * 18;
     svg.appendChild(svgEl('circle', {
-      cx: px(v.x), cy: py(v.y), r: 4,
-      fill: '#7C5CBF', stroke: '#fff', 'stroke-width': 2
+      cx: px(v.x), cy: py(v.y), r: 5, fill: '#7C5CBF'
     }));
     const label = svgEl('text', {
-      x: px(v.x) + dx * 3, y: py(v.y) - dy * 3 + 5,
+      x: px(v.x) + dx, y: py(v.y) - dy + 5,
       'text-anchor': 'middle', 'font-size': 14, 'font-weight': 'bold',
       fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif'
     });
@@ -2316,24 +2342,23 @@ function renderSubtractionFigure(svg, task) {
     svg.appendChild(label);
   });
 
-  // Label inner vertices continuing from where outer left off
+  // Label inner vertices continuing from where outer left off.
+  // Skip vertices that coincide with an outer vertex (they already have a label).
   const innerLabels = VERTEX_LABELS.slice(outer.length, outer.length + inner.length);
-  const icx = inner.reduce((s, v) => s + v.x, 0) / inner.length;
-  const icy = inner.reduce((s, v) => s + v.y, 0) / inner.length;
   inner.forEach((v, i) => {
-    // Skip labeling vertices that coincide with an outer vertex
-    const shared = outer.some(ov => ov.x === v.x && ov.y === v.y);
-    if (shared) return;
-    const dx = (v.x - icx) * 0.18;
-    const dy = (v.y - icy) * 0.18;
+    if (outer.some(ov => ov.x === v.x && ov.y === v.y)) return;
+    let dx = v.x - allCx;
+    let dy = v.y - allCy;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    dx = (dx / len) * 18;
+    dy = (dy / len) * 18;
     svg.appendChild(svgEl('circle', {
-      cx: px(v.x), cy: py(v.y), r: 4,
-      fill: '#D47B2F', stroke: '#fff', 'stroke-width': 2
+      cx: px(v.x), cy: py(v.y), r: 5, fill: '#7C5CBF'
     }));
     const label = svgEl('text', {
-      x: px(v.x) + dx * 3, y: py(v.y) - dy * 3 + 5,
+      x: px(v.x) + dx, y: py(v.y) - dy + 5,
       'text-anchor': 'middle', 'font-size': 14, 'font-weight': 'bold',
-      fill: '#D47B2F', 'font-family': 'Nunito, sans-serif'
+      fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif'
     });
     label.textContent = innerLabels[i];
     svg.appendChild(label);
@@ -2862,13 +2887,16 @@ function renderSubtractionSolution(svg, task, correct) {
     stroke: color, 'stroke-width': 3, 'stroke-linejoin': 'round'
   }));
 
-  // Re-outline inner polygon in answer color (dashed)
-  const innerPts = task.innerVertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
-  svg.appendChild(svgEl('polygon', {
-    points: innerPts, fill: 'none',
-    stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
-    'stroke-dasharray': '6,4'
-  }));
+  // Re-outline inner polygon edge-by-edge, skipping shared edges
+  const inner = task.innerVertices;
+  for (let i = 0; i < inner.length; i++) {
+    const p1 = inner[i], p2 = inner[(i + 1) % inner.length];
+    if (segmentOnPolygonEdge(p1, p2, task.vertices)) continue;
+    svg.appendChild(svgEl('line', {
+      x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
+      stroke: color, 'stroke-width': 2.5, 'stroke-linecap': 'round'
+    }));
+  }
 
   // S₁ label at outer centroid, S₂ at inner centroid
   if (task.subCentroids) {
