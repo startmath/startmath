@@ -2342,18 +2342,10 @@ function renderSubtractionFigure(svg, task) {
     stroke: 'none'
   }));
 
-  // Stroke outer polygon, skipping segments shared with the inner polygon
-  strokePolygonMinusShared(svg, outer, inner, {
-    stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round'
-  });
-  // Stroke inner polygon fully with dotted line (including shared edges)
-  // so the cut-out shape is always clearly visible
-  const innerPts = inner.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
-  svg.appendChild(svgEl('polygon', {
-    points: innerPts, fill: 'none',
-    stroke: '#7C5CBF', 'stroke-width': 2, 'stroke-linejoin': 'round',
-    'stroke-dasharray': '5,4'
-  }));
+  // Stroke both polygons with solid lines, skipping shared segments
+  const edgeAttrs = { stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round' };
+  strokePolygonMinusShared(svg, outer, inner, edgeAttrs);
+  strokePolygonMinusShared(svg, inner, outer, edgeAttrs);
 
   // Collect all unique vertices (outer + non-shared inner) for labeling.
   // Use combined centroid of ALL vertices for consistent label push direction.
