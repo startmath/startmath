@@ -2915,19 +2915,22 @@ function renderSubtractionSolution(svg, task, correct) {
   strokePolygonMinusShared(svg, task.vertices, task.innerVertices, {
     stroke: color, 'stroke-width': 3, 'stroke-linecap': 'round'
   });
-  // Re-outline full inner polygon with dotted line (including shared edges).
-  // Draw a white backing line first so the dotted line is visible even on
-  // edges that overlap with the fill boundary or other strokes.
-  const innerPts = task.innerVertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
-  svg.appendChild(svgEl('polygon', {
-    points: innerPts, fill: 'none',
-    stroke: '#fff', 'stroke-width': 4, 'stroke-linejoin': 'round'
-  }));
-  svg.appendChild(svgEl('polygon', {
-    points: innerPts, fill: 'none',
-    stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
-    'stroke-dasharray': '5,4'
-  }));
+  // Re-outline every inner edge with dotted line (including shared edges).
+  // Each edge is drawn individually as a line so shared-edge segments are
+  // guaranteed to render. White backing makes them visible over the fill.
+  const inv = task.innerVertices;
+  for (let i = 0; i < inv.length; i++) {
+    const p1 = inv[i], p2 = inv[(i + 1) % inv.length];
+    svg.appendChild(svgEl('line', {
+      x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
+      stroke: '#fff', 'stroke-width': 5, 'stroke-linecap': 'round'
+    }));
+    svg.appendChild(svgEl('line', {
+      x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
+      stroke: color, 'stroke-width': 2.5, 'stroke-linecap': 'round',
+      'stroke-dasharray': '5,4'
+    }));
+  }
 
   // S₁ in the ring area (outer minus inner), S₂ inside the inner figure.
   // For S₁: use outer centroid, but if it falls inside the inner polygon,
