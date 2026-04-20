@@ -649,14 +649,12 @@ function simplifyPolygon(verts) {
 function finalizeMixed(task) {
   if (!task) return null;
   const simplified = simplifyPolygon(task.vertices);
-  // Reducibility guard: if the decomposition-removing simplify step dropped
-  // the polygon to fewer than 4 vertices, the compound was effectively a
-  // simple shape (e.g., rectangle + square that merged into one rectangle).
   if (simplified.length < 4) return null;
-  // Also reject if simplifying dropped more than 1 vertex from the expected
-  // template shape — such reductions mean the sub-figures aligned in a way
-  // that collapses part of the compound boundary.
   if (simplified.length < task.vertices.length - 1) return null;
+  // Reject if simplification reduced the shape to ≤ 4 vertices — that means
+  // the compound collapsed into something that looks like a standard simple
+  // figure (trapezoid, parallelogram, rectangle).
+  if (simplified.length <= 4 && simplified.length < task.vertices.length) return null;
   task.vertices = simplified;
   return task;
 }
@@ -1925,7 +1923,7 @@ const SUBTRACTION_TEMPLATES = [
 const MIXED_TEMPLATES = [
   generateHouse,
   generateRectTrapezoid,
-  generateRectTriangleSide,
+  // generateRectTriangleSide removed: always simplifies to a trapezoid
   generateTrapezoidTriangle,
   generateParaTriangle,
   generateTower,
@@ -2262,23 +2260,68 @@ function renderMixedFigure(svg, task) {
   renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
 }
 
-// Tests whether segment (p1→p2) lies entirely on one of the edges of `poly`.
-// Returns true if the segment is collinear with and contained within a polygon edge.
-function segmentOnPolygonEdge(p1, p2, poly) {
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length];
-    // Check collinearity: cross products of (a→b) with (a→p1) and (a→p2) must be zero
-    const cross1 = (b.x - a.x) * (p1.y - a.y) - (b.y - a.y) * (p1.x - a.x);
-    const cross2 = (b.x - a.x) * (p2.y - a.y) - (b.y - a.y) * (p2.x - a.x);
+// Returns the visible (non-overlapping) segments of edge A→B after subtracting
+// all edges from `otherPoly` that lie on the same line. Each result segment is
+// a pair of {x,y} points.
+function visibleEdgeSegments(A, B, otherPoly) {
+  const abLen2 = (B.x - A.x) ** 2 + (B.y - A.y) ** 2;
+  if (abLen2 === 0) return [];
+  // Collect t-intervals [t1,t2] on edge A→B that are covered by otherPoly edges
+  const covered = [];
+  for (let i = 0; i < otherPoly.length; i++) {
+    const p = otherPoly[i], q = otherPoly[(i + 1) % otherPoly.length];
+    // Check collinearity
+    const cross1 = (B.x - A.x) * (p.y - A.y) - (B.y - A.y) * (p.x - A.x);
+    const cross2 = (B.x - A.x) * (q.y - A.y) - (B.y - A.y) * (q.x - A.x);
     if (Math.abs(cross1) > 0.001 || Math.abs(cross2) > 0.001) continue;
-    // Collinear — check that both p1 and p2 lie within the segment a→b
-    const abLen2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
-    if (abLen2 === 0) continue;
-    const t1 = ((p1.x - a.x) * (b.x - a.x) + (p1.y - a.y) * (b.y - a.y)) / abLen2;
-    const t2 = ((p2.x - a.x) * (b.x - a.x) + (p2.y - a.y) * (b.y - a.y)) / abLen2;
-    if (t1 >= -0.001 && t1 <= 1.001 && t2 >= -0.001 && t2 <= 1.001) return true;
+    // Project p and q onto A→B as t values
+    let t1 = ((p.x - A.x) * (B.x - A.x) + (p.y - A.y) * (B.y - A.y)) / abLen2;
+    let t2 = ((q.x - A.x) * (B.x - A.x) + (q.y - A.y) * (B.y - A.y)) / abLen2;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    t1 = Math.max(0, t1); t2 = Math.min(1, t2);
+    if (t2 > t1 + 0.001) covered.push([t1, t2]);
   }
-  return false;
+  if (covered.length === 0) return [[A, B]];
+  // Merge overlapping intervals and compute uncovered segments
+  covered.sort((a, b) => a[0] - b[0]);
+  const merged = [covered[0]];
+  for (let i = 1; i < covered.length; i++) {
+    const last = merged[merged.length - 1];
+    if (covered[i][0] <= last[1] + 0.001) {
+      last[1] = Math.max(last[1], covered[i][1]);
+    } else {
+      merged.push(covered[i]);
+    }
+  }
+  const lerp = (t) => ({ x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t });
+  const segments = [];
+  let cursor = 0;
+  for (const [s, e] of merged) {
+    if (s > cursor + 0.001) segments.push([lerp(cursor), lerp(s)]);
+    cursor = e;
+  }
+  if (cursor < 1 - 0.001) segments.push([lerp(cursor), lerp(1)]);
+  return segments;
+}
+
+// Convenience: tests if an edge is fully covered by the other polygon.
+function segmentOnPolygonEdge(p1, p2, poly) {
+  const segs = visibleEdgeSegments(p1, p2, poly);
+  return segs.length === 0;
+}
+
+// Draw a polygon edge-by-edge, skipping parts that overlap with `otherPoly`.
+function strokePolygonMinusShared(svg, verts, otherPoly, attrs) {
+  for (let i = 0; i < verts.length; i++) {
+    const A = verts[i], B = verts[(i + 1) % verts.length];
+    const segs = visibleEdgeSegments(A, B, otherPoly);
+    for (const [p1, p2] of segs) {
+      svg.appendChild(svgEl('line', {
+        x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
+        ...attrs
+      }));
+    }
+  }
 }
 
 // Renders a subtraction figure: outer polygon with inner polygon "hole".
@@ -2299,22 +2342,10 @@ function renderSubtractionFigure(svg, task) {
     stroke: 'none'
   }));
 
-  // Stroke outer polygon
-  const outerPts = outer.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
-  svg.appendChild(svgEl('polygon', {
-    points: outerPts, fill: 'none',
-    stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linejoin': 'round'
-  }));
-
-  // Stroke inner polygon edge-by-edge, skipping edges that lie on an outer edge
-  for (let i = 0; i < inner.length; i++) {
-    const p1 = inner[i], p2 = inner[(i + 1) % inner.length];
-    if (segmentOnPolygonEdge(p1, p2, outer)) continue;
-    svg.appendChild(svgEl('line', {
-      x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
-      stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round'
-    }));
-  }
+  // Stroke both polygons edge-by-edge, skipping shared segments on both sides
+  const edgeAttrs = { stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round' };
+  strokePolygonMinusShared(svg, outer, inner, edgeAttrs);
+  strokePolygonMinusShared(svg, inner, outer, edgeAttrs);
 
   // Collect all unique vertices (outer + non-shared inner) for labeling.
   // Use combined centroid of ALL vertices for consistent label push direction.
@@ -2880,37 +2911,54 @@ function renderMixedSolution(svg, task, correct) {
 function renderSubtractionSolution(svg, task, correct) {
   const color = correct ? '#4CAF50' : '#EF5350';
 
-  // Re-outline outer polygon in answer color
-  const outerPts = task.vertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
-  svg.appendChild(svgEl('polygon', {
-    points: outerPts, fill: 'none',
-    stroke: color, 'stroke-width': 3, 'stroke-linejoin': 'round'
-  }));
+  // Re-outline outer edges (solid), skipping shared segments
+  strokePolygonMinusShared(svg, task.vertices, task.innerVertices, {
+    stroke: color, 'stroke-width': 3, 'stroke-linecap': 'round'
+  });
+  // Re-outline inner edges (dashed), skipping shared segments
+  strokePolygonMinusShared(svg, task.innerVertices, task.vertices, {
+    stroke: color, 'stroke-width': 2.5, 'stroke-linecap': 'round',
+    'stroke-dasharray': '6,4'
+  });
 
-  // Re-outline inner polygon edge-by-edge, skipping shared edges
-  const inner = task.innerVertices;
-  for (let i = 0; i < inner.length; i++) {
-    const p1 = inner[i], p2 = inner[(i + 1) % inner.length];
-    if (segmentOnPolygonEdge(p1, p2, task.vertices)) continue;
-    svg.appendChild(svgEl('line', {
-      x1: px(p1.x), y1: py(p1.y), x2: px(p2.x), y2: py(p2.y),
-      stroke: color, 'stroke-width': 2.5, 'stroke-linecap': 'round'
-    }));
+  // S₁ in the ring area (outer minus inner), S₂ inside the inner figure.
+  // For S₁: use outer centroid, but if it falls inside the inner polygon,
+  // move it toward the midpoint of the longest non-shared outer edge.
+  const outerC = centroid(task.vertices);
+  const innerC = centroid(task.innerVertices);
+  let s1 = outerC;
+  if (pointInPolygon(s1, task.innerVertices)) {
+    // Find midpoint of the longest outer edge that is not shared
+    let bestLen = 0, bestMid = outerC;
+    for (let i = 0; i < task.vertices.length; i++) {
+      const a = task.vertices[i], b = task.vertices[(i + 1) % task.vertices.length];
+      const segs = visibleEdgeSegments(a, b, task.innerVertices);
+      for (const [p, q] of segs) {
+        const len2 = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
+        if (len2 > bestLen) {
+          bestLen = len2;
+          bestMid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+        }
+      }
+    }
+    // Place S₁ between the outer edge midpoint and the outer centroid
+    s1 = { x: (bestMid.x + outerC.x) / 2, y: (bestMid.y + outerC.y) / 2 };
   }
 
-  // S₁ label at outer centroid, S₂ at inner centroid
-  if (task.subCentroids) {
-    task.subCentroids.forEach((c, i) => {
-      const label = svgEl('text', {
-        x: px(c.x), y: py(c.y) + 7,
-        'text-anchor': 'middle',
-        'font-size': 20, 'font-weight': 'bold',
-        fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif',
-        stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
-      });
-      label.textContent = `S${toSubscript(i + 1)}`;
-      svg.appendChild(label);
+  const labels = [
+    { pt: s1, text: `S${toSubscript(1)}` },
+    { pt: innerC, text: `S${toSubscript(2)}` }
+  ];
+  for (const { pt, text } of labels) {
+    const label = svgEl('text', {
+      x: px(pt.x), y: py(pt.y) + 7,
+      'text-anchor': 'middle',
+      'font-size': 20, 'font-weight': 'bold',
+      fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif',
+      stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
     });
+    label.textContent = text;
+    svg.appendChild(label);
   }
 }
 

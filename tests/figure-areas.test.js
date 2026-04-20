@@ -340,7 +340,7 @@ section('mixed module', () => {
       const tasks = fa.generateAllTasks(20, 'mixed');
       for (const t of tasks) if (t.template) seen.add(t.template);
     }
-    for (const expected of ['house', 'rectTrap', 'rectTriSide', 'trapTriangle']) {
+    for (const expected of ['house', 'rectTrap', 'trapTriangle']) {
       assert(seen.has(expected), `template ${expected} never generated across 120 batches`);
     }
   });
@@ -637,7 +637,7 @@ section('mixed templates — no collinear fake vertices', () => {
   test('MIXED_TEMPLATES contains the full current template set', () => {
     const names = fa.MIXED_TEMPLATES.map(f => f.name).sort();
     const expected = [
-      'generateHouse', 'generateRectTrapezoid', 'generateRectTriangleSide',
+      'generateHouse', 'generateRectTrapezoid',
       'generateTrapezoidTriangle', 'generateParaTriangle', 'generateTower',
       'generateRectObtuseTriangle', 'generateTrapRect', 'generateParaRect',
       'generateDoubleTriangle', 'generateRectTriBoth', 'generateTrapTrap',
