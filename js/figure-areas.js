@@ -2342,10 +2342,18 @@ function renderSubtractionFigure(svg, task) {
     stroke: 'none'
   }));
 
-  // Stroke both polygons edge-by-edge, skipping shared segments on both sides
-  const edgeAttrs = { stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round' };
-  strokePolygonMinusShared(svg, outer, inner, edgeAttrs);
-  strokePolygonMinusShared(svg, inner, outer, edgeAttrs);
+  // Stroke outer polygon, skipping segments shared with the inner polygon
+  strokePolygonMinusShared(svg, outer, inner, {
+    stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linecap': 'round'
+  });
+  // Stroke inner polygon fully with dotted line (including shared edges)
+  // so the cut-out shape is always clearly visible
+  const innerPts = inner.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: innerPts, fill: 'none',
+    stroke: '#7C5CBF', 'stroke-width': 2, 'stroke-linejoin': 'round',
+    'stroke-dasharray': '5,4'
+  }));
 
   // Collect all unique vertices (outer + non-shared inner) for labeling.
   // Use combined centroid of ALL vertices for consistent label push direction.
@@ -2915,11 +2923,13 @@ function renderSubtractionSolution(svg, task, correct) {
   strokePolygonMinusShared(svg, task.vertices, task.innerVertices, {
     stroke: color, 'stroke-width': 3, 'stroke-linecap': 'round'
   });
-  // Re-outline inner edges (dashed), skipping shared segments
-  strokePolygonMinusShared(svg, task.innerVertices, task.vertices, {
-    stroke: color, 'stroke-width': 2.5, 'stroke-linecap': 'round',
-    'stroke-dasharray': '6,4'
-  });
+  // Re-outline full inner polygon with dotted line (including shared edges)
+  const innerPts = task.innerVertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: innerPts, fill: 'none',
+    stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
+    'stroke-dasharray': '5,4'
+  }));
 
   // S₁ in the ring area (outer minus inner), S₂ inside the inner figure.
   // For S₁: use outer centroid, but if it falls inside the inner polygon,
