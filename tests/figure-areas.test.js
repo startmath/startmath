@@ -38,7 +38,7 @@ const loader = new Function(src + `
     generateMixed, generateHouse, generateRectTrapezoid,
     generateRectTriangleSide, generateTrapezoidTriangle,
     generateParaTriangle, generateTower, generateRectObtuseTriangle,
-    MIXED_TEMPLATES, simplifyPolygon,
+    MIXED_TEMPLATES, SUBTRACTION_TEMPLATES, simplifyPolygon, finalizeSubtraction,
     MODULES,
     parallelogramFormulaHTML, triangleFormulaHTML, trapezoidFormulaHTML,
     mixedFormulaHTML, frameFormulaHTML,
@@ -361,12 +361,18 @@ section('mixed module', () => {
     for (const t of tasks) {
       if (t.nonGrid) continue;
       assert(Array.isArray(t.subParts) && t.subParts.length >= 1);
-      let sum = 0;
+      let combined = 0;
       for (const p of t.subParts) {
         assert(p.area > 0, 'sub-part area must be positive');
-        sum += p.area;
+        combined += p.area;
       }
-      assertClose(sum, t.totalArea, 1e-9, 'sub-part sum must equal totalArea');
+      if (t.subtraction) {
+        // For subtraction: totalArea = subParts[0] - subParts[1]
+        const expected = t.subParts[0].area - t.subParts[1].area;
+        assertClose(expected, t.totalArea, 1e-9, 'subtraction: S1-S2 must equal totalArea');
+      } else {
+        assertClose(combined, t.totalArea, 1e-9, 'sub-part sum must equal totalArea');
+      }
     }
   });
 
@@ -381,7 +387,14 @@ section('mixed module', () => {
     const tasks = fa.generateAllTasks(40, 'mixed');
     for (const t of tasks) {
       if (t.nonGrid) continue;
-      assertClose(t.totalArea, fa.shoelace(t.vertices), 1e-9, `template ${t.template}`);
+      if (t.subtraction) {
+        // For subtraction: totalArea = shoelace(outer) - shoelace(inner)
+        const outerArea = fa.shoelace(t.vertices);
+        const innerArea = fa.shoelace(t.innerVertices);
+        assertClose(t.totalArea, outerArea - innerArea, 1e-9, `template ${t.template}`);
+      } else {
+        assertClose(t.totalArea, fa.shoelace(t.vertices), 1e-9, `template ${t.template}`);
+      }
     }
   });
 
@@ -654,6 +667,78 @@ section('mixed templates — no collinear fake vertices', () => {
       }
     }
     assert(saw3Parts, 'mixed mode should eventually produce a 3-part compound');
+  });
+
+  test('SUBTRACTION_TEMPLATES contains the full current template set', () => {
+    const names = fa.SUBTRACTION_TEMPLATES.map(f => f.name).sort();
+    const expected = [
+      'generateRectMinusRect', 'generateRectMinusTri', 'generateTriMinusTri',
+      'generateRectMinusPara', 'generateRectMinusTrap',
+      'generateParaMinusTri', 'generateTrapMinusTri',
+      'generateTriMinusRect', 'generateTrapMinusRect', 'generateParaMinusRect'
+    ].sort();
+    assertEq(names.length, expected.length);
+    for (let i = 0; i < expected.length; i++) assertEq(names[i], expected[i]);
+  });
+
+  test('mixed mode eventually generates subtraction tasks', () => {
+    let sawSub = false;
+    for (let i = 0; i < 200 && !sawSub; i++) {
+      const tasks = fa.generateAllTasks(20, 'mixed');
+      for (const t of tasks) {
+        if (t.subtraction) { sawSub = true; break; }
+      }
+    }
+    assert(sawSub, 'mixed mode should eventually produce a subtraction task');
+  });
+
+  test('subtraction tasks have valid structure', () => {
+    let checked = 0;
+    for (let i = 0; i < 500 && checked < 20; i++) {
+      const tasks = fa.generateAllTasks(10, 'mixed');
+      for (const t of tasks) {
+        if (!t.subtraction) continue;
+        checked++;
+        assert(Array.isArray(t.innerVertices) && t.innerVertices.length >= 3,
+          'subtraction task must have innerVertices');
+        assert(t.totalArea > 0, 'subtraction totalArea must be positive');
+        assertClose(t.totalArea, t.subParts[0].area - t.subParts[1].area, 1e-9,
+          'totalArea must equal S1 - S2');
+        // Shoelace of outer minus inner must match totalArea
+        const outerArea = fa.shoelace(t.vertices);
+        const innerArea = fa.shoelace(t.innerVertices);
+        assertClose(t.totalArea, outerArea - innerArea, 1e-9,
+          'shoelace(outer) - shoelace(inner) must match totalArea');
+        // All vertices on grid
+        for (const v of t.vertices) {
+          assert(v.x >= 0 && v.x <= fa.GRID_SIZE && v.y >= 0 && v.y <= fa.GRID_SIZE,
+            'outer vertex must be in grid');
+        }
+        for (const v of t.innerVertices) {
+          assert(v.x >= 0 && v.x <= fa.GRID_SIZE && v.y >= 0 && v.y <= fa.GRID_SIZE,
+            'inner vertex must be in grid');
+        }
+      }
+    }
+    assert(checked >= 5, `expected at least 5 subtraction tasks, got ${checked}`);
+  });
+
+  test('subtraction tasks survive transform', () => {
+    let checked = 0;
+    for (let i = 0; i < 500 && checked < 10; i++) {
+      const tasks = fa.generateAllTasks(10, 'mixed');
+      for (const t of tasks) {
+        if (!t.subtraction) continue;
+        checked++;
+        assert(Array.isArray(t.innerVertices), 'innerVertices must survive transform');
+        // After transform, area invariant still holds
+        const outerArea = fa.shoelace(t.vertices);
+        const innerArea = fa.shoelace(t.innerVertices);
+        assertClose(t.totalArea, outerArea - innerArea, 1e-9,
+          'area invariant must hold after transform');
+      }
+    }
+    assert(checked >= 3, `expected at least 3 transformed subtraction tasks, got ${checked}`);
   });
 });
 

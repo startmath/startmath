@@ -1357,6 +1357,484 @@ function generateTriTrapTri() {
   return null;
 }
 
+// ===== Subtraction (outer − inner) Generators =====
+// Each returns a task with `subtraction: true`, `innerVertices`, and two
+// `subParts` where totalArea = subParts[0].area − subParts[1].area.
+// The inner figure may share a side/partial side with the outer figure.
+
+// Helper: check that inner polygon is strictly inside outer polygon.
+// Uses ray-casting for each inner vertex against the outer polygon.
+function pointInPolygon(pt, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    if (((yi > pt.y) !== (yj > pt.y)) &&
+        (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function allInnerInsideOuter(inner, outer) {
+  // Every inner vertex must be inside or on the boundary of the outer polygon.
+  // For lattice figures sharing edges this is guaranteed by construction, but
+  // a quick centroid check catches obvious failures after transforms.
+  const cx = inner.reduce((s, v) => s + v.x, 0) / inner.length;
+  const cy = inner.reduce((s, v) => s + v.y, 0) / inner.length;
+  return pointInPolygon({ x: cx, y: cy }, outer);
+}
+
+// Rectangle with a smaller rectangle removed (sharing one corner).
+function generateRectMinusRect() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w1 = randInt(4, 7), h1 = randInt(4, 7);
+    const w2 = randInt(1, w1 - 2), h2 = randInt(1, h1 - 2);
+    if (w1 > GRID_SIZE || h1 > GRID_SIZE) continue;
+
+    const x0 = randInt(0, GRID_SIZE - w1);
+    const y0 = randInt(0, GRID_SIZE - h1);
+    // Inner rect shares bottom-left corner
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
+      { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + w2, y: y0 },
+      { x: x0 + w2, y: y0 + h2 }, { x: x0, y: y0 + h2 }
+    ];
+    return {
+      figure: 'mixed', template: 'rectMinusRect', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Правоъгълник (външен)', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
+        { label: 'Правоъгълник (вътрешен)', dims: [w2, h2], formulaType: 'rect', area: w2 * h2 }
+      ],
+      subCentroids: [
+        { x: x0 + w1 / 2, y: y0 + h1 / 2 },
+        { x: x0 + w2 / 2, y: y0 + h2 / 2 }
+      ],
+      totalArea: w1 * h1 - w2 * h2
+    };
+  }
+  return null;
+}
+
+// Rectangle with a triangle removed (triangle shares one side of the rect).
+function generateRectMinusTri() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w1 = randInt(4, 7), h1 = randInt(4, 7);
+    if (w1 > GRID_SIZE || h1 > GRID_SIZE) continue;
+    // Triangle base along the bottom side of the rect
+    const tBase = randInt(2, w1);
+    const tHeight = randInt(2, h1 - 1);
+    if ((tBase * tHeight) % 2 !== 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - w1);
+    const y0 = randInt(0, GRID_SIZE - h1);
+    // Triangle starts at bottom-left corner, base along bottom
+    const apexX = x0 + Math.floor(tBase / 2);
+    if (tBase % 2 !== 0) continue; // apex on lattice
+
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
+      { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + tBase, y: y0 },
+      { x: apexX, y: y0 + tHeight }
+    ];
+    return {
+      figure: 'mixed', template: 'rectMinusTri', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Правоъгълник', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
+        { label: 'Триъгълник', dims: [tBase, tHeight], formulaType: 'tri', area: (tBase * tHeight) / 2 }
+      ],
+      subCentroids: [
+        { x: x0 + w1 / 2, y: y0 + h1 / 2 },
+        { x: (x0 + x0 + tBase + apexX) / 3, y: (y0 + y0 + y0 + tHeight) / 3 }
+      ],
+      totalArea: w1 * h1 - (tBase * tHeight) / 2
+    };
+  }
+  return null;
+}
+
+// Triangle with a smaller triangle removed (sharing part of the base).
+function generateTriMinusTri() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base1 = randInt(4, 8), h1 = randInt(4, 7);
+    if (base1 > GRID_SIZE || h1 > GRID_SIZE) continue;
+    if (base1 % 2 !== 0) continue;
+    if ((base1 * h1) % 2 !== 0) continue;
+
+    const base2 = randInt(2, base1 - 1);
+    const h2 = randInt(2, h1 - 1);
+    if (base2 % 2 !== 0) continue;
+    if ((base2 * h2) % 2 !== 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - base1);
+    const y0 = randInt(0, GRID_SIZE - h1);
+    const apex1X = x0 + base1 / 2;
+    // Inner triangle shares left corner of base
+    const apex2X = x0 + base2 / 2;
+
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + base1, y: y0 },
+      { x: apex1X, y: y0 + h1 }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + base2, y: y0 },
+      { x: apex2X, y: y0 + h2 }
+    ];
+    return {
+      figure: 'mixed', template: 'triMinusTri', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Триъгълник (външен)', dims: [base1, h1], formulaType: 'tri', area: (base1 * h1) / 2 },
+        { label: 'Триъгълник (вътрешен)', dims: [base2, h2], formulaType: 'tri', area: (base2 * h2) / 2 }
+      ],
+      subCentroids: [
+        { x: apex1X, y: y0 + h1 / 3 },
+        { x: apex2X, y: y0 + h2 / 3 }
+      ],
+      totalArea: (base1 * h1) / 2 - (base2 * h2) / 2
+    };
+  }
+  return null;
+}
+
+// Rectangle with a parallelogram removed (para shares bottom side).
+function generateRectMinusPara() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w1 = randInt(5, 7), h1 = randInt(4, 7);
+    if (w1 > GRID_SIZE || h1 > GRID_SIZE) continue;
+    const pBase = randInt(2, w1 - 1);
+    const pH = randInt(2, h1 - 1);
+    const pOff = randInt(1, 2) * (Math.random() < 0.5 ? 1 : -1);
+    // Check para fits in rect
+    const pMinX = Math.min(0, pOff);
+    const pMaxX = Math.max(pBase, pBase + pOff);
+    if (pMaxX > w1 || pMinX < 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - w1);
+    const y0 = randInt(0, GRID_SIZE - h1);
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
+      { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + pBase, y: y0 },
+      { x: x0 + pBase + pOff, y: y0 + pH }, { x: x0 + pOff, y: y0 + pH }
+    ];
+    return {
+      figure: 'mixed', template: 'rectMinusPara', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Правоъгълник', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
+        { label: 'Успоредник', dims: [pBase, pH], formulaType: 'para', area: pBase * pH }
+      ],
+      subCentroids: [
+        { x: x0 + w1 / 2, y: y0 + h1 / 2 },
+        { x: x0 + pBase / 2 + pOff / 2, y: y0 + pH / 2 }
+      ],
+      totalArea: w1 * h1 - pBase * pH
+    };
+  }
+  return null;
+}
+
+// Rectangle with a trapezoid removed (trap shares bottom side of rect).
+function generateRectMinusTrap() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const w1 = randInt(5, 8), h1 = randInt(4, 7);
+    if (w1 > GRID_SIZE || h1 > GRID_SIZE) continue;
+    const a = w1;               // trap longer base = full bottom of rect
+    const b = randInt(2, a - 2); // trap shorter base
+    const tH = randInt(2, h1 - 1);
+    if (((a + b) * tH) % 2 !== 0) continue;
+    const diff = a - b;
+    const lOff = Math.floor(diff / 2);
+    const rOff = diff - lOff;
+    if (lOff === 0 || rOff === 0) continue;
+
+    const x0 = randInt(0, GRID_SIZE - w1);
+    const y0 = randInt(0, GRID_SIZE - h1);
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + w1, y: y0 },
+      { x: x0 + w1, y: y0 + h1 }, { x: x0, y: y0 + h1 }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + a, y: y0 },
+      { x: x0 + a - rOff, y: y0 + tH }, { x: x0 + lOff, y: y0 + tH }
+    ];
+    return {
+      figure: 'mixed', template: 'rectMinusTrap', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Правоъгълник', dims: [w1, h1], formulaType: 'rect', area: w1 * h1 },
+        { label: 'Трапец', dims: [a, b, tH], formulaType: 'trap', area: (a + b) * tH / 2 }
+      ],
+      subCentroids: [
+        { x: x0 + w1 / 2, y: y0 + h1 / 2 },
+        { x: x0 + a / 2, y: y0 + tH / 2 }
+      ],
+      totalArea: w1 * h1 - (a + b) * tH / 2
+    };
+  }
+  return null;
+}
+
+// Parallelogram with a triangle removed (tri shares one side of the para).
+function generateParaMinusTri() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(4, 6), pH = randInt(3, 5);
+    const off = randInt(1, 2) * (Math.random() < 0.5 ? 1 : -1);
+    if (base > GRID_SIZE || pH > GRID_SIZE) continue;
+    const xMin = Math.min(0, off);
+    const xMax = Math.max(base, base + off);
+    const x0min = -xMin;
+    const x0max = GRID_SIZE - xMax;
+    if (x0min > x0max) continue;
+
+    const tBase = randInt(2, base);
+    const tH = randInt(2, pH - 1);
+    if ((tBase * tH) % 2 !== 0 || tBase % 2 !== 0) continue;
+    const apexX = tBase / 2; // relative to para bottom-left
+
+    const x0 = randInt(x0min, x0max);
+    const y0 = randInt(0, GRID_SIZE - pH);
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + base, y: y0 },
+      { x: x0 + base + off, y: y0 + pH }, { x: x0 + off, y: y0 + pH }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + tBase, y: y0 },
+      { x: x0 + apexX, y: y0 + tH }
+    ];
+    return {
+      figure: 'mixed', template: 'paraMinusTri', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Успоредник', dims: [base, pH], formulaType: 'para', area: base * pH },
+        { label: 'Триъгълник', dims: [tBase, tH], formulaType: 'tri', area: (tBase * tH) / 2 }
+      ],
+      subCentroids: [
+        { x: x0 + base / 2 + off / 2, y: y0 + pH / 2 },
+        { x: x0 + (0 + tBase + apexX) / 3, y: y0 + tH / 3 }
+      ],
+      totalArea: base * pH - (tBase * tH) / 2
+    };
+  }
+  return null;
+}
+
+// Trapezoid with a triangle removed (tri shares the longer base of trap).
+function generateTrapMinusTri() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const a = randInt(5, 8), b = randInt(2, a - 2);
+    const tH = randInt(3, 6);
+    if (a > GRID_SIZE || tH > GRID_SIZE) continue;
+    if (((a + b) * tH) % 2 !== 0) continue;
+    const diff = a - b;
+    const lOff = Math.floor(diff / 2), rOff = diff - lOff;
+    if (lOff === 0 || rOff === 0) continue;
+
+    const triBase = randInt(2, a - 1);
+    const triH = randInt(2, tH - 1);
+    if ((triBase * triH) % 2 !== 0 || triBase % 2 !== 0) continue;
+    const triApexX = triBase / 2;
+
+    const x0 = randInt(0, GRID_SIZE - a);
+    const y0 = randInt(0, GRID_SIZE - tH);
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + a, y: y0 },
+      { x: x0 + a - rOff, y: y0 + tH }, { x: x0 + lOff, y: y0 + tH }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + triBase, y: y0 },
+      { x: x0 + triApexX, y: y0 + triH }
+    ];
+    return {
+      figure: 'mixed', template: 'trapMinusTri', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Трапец', dims: [a, b, tH], formulaType: 'trap', area: (a + b) * tH / 2 },
+        { label: 'Триъгълник', dims: [triBase, triH], formulaType: 'tri', area: (triBase * triH) / 2 }
+      ],
+      subCentroids: [
+        { x: x0 + a / 2, y: y0 + tH / 2 },
+        { x: x0 + triApexX, y: y0 + triH / 3 }
+      ],
+      totalArea: (a + b) * tH / 2 - (triBase * triH) / 2
+    };
+  }
+  return null;
+}
+
+// Triangle with a rectangle removed (rect base on the triangle's base).
+function generateTriMinusRect() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(4, 8), h = randInt(4, 7);
+    if (base > GRID_SIZE || h > GRID_SIZE) continue;
+    if (base % 2 !== 0) continue;
+    if ((base * h) % 2 !== 0) continue;
+    const rW = randInt(2, base - 1), rH = randInt(1, h - 2);
+
+    const x0 = randInt(0, GRID_SIZE - base);
+    const y0 = randInt(0, GRID_SIZE - h);
+    const apexX = x0 + base / 2;
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + base, y: y0 },
+      { x: apexX, y: y0 + h }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + rW, y: y0 },
+      { x: x0 + rW, y: y0 + rH }, { x: x0, y: y0 + rH }
+    ];
+    // Check rect fits inside triangle: top-right corner must be inside
+    // The triangle's left edge goes from (x0,y0) to (apexX,y0+h).
+    // At y = y0+rH, the left edge x = x0 + (apexX-x0)*rH/h
+    // The right edge at y = y0+rH: x = x0+base - (x0+base-apexX)*rH/h
+    const leftEdgeAtRH = x0 + (apexX - x0) * rH / h;
+    const rightEdgeAtRH = x0 + base - (x0 + base - apexX) * rH / h;
+    if (x0 + rW > rightEdgeAtRH || x0 < leftEdgeAtRH) continue;
+
+    return {
+      figure: 'mixed', template: 'triMinusRect', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Триъгълник', dims: [base, h], formulaType: 'tri', area: (base * h) / 2 },
+        { label: 'Правоъгълник', dims: [rW, rH], formulaType: 'rect', area: rW * rH }
+      ],
+      subCentroids: [
+        { x: apexX, y: y0 + h / 3 },
+        { x: x0 + rW / 2, y: y0 + rH / 2 }
+      ],
+      totalArea: (base * h) / 2 - rW * rH
+    };
+  }
+  return null;
+}
+
+// Trapezoid with a rectangle removed (rect shares the longer base).
+function generateTrapMinusRect() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const a = randInt(5, 8), b = randInt(2, a - 2);
+    const tH = randInt(3, 6);
+    if (a > GRID_SIZE || tH > GRID_SIZE) continue;
+    if (((a + b) * tH) % 2 !== 0) continue;
+    const diff = a - b;
+    const lOff = Math.floor(diff / 2), rOff = diff - lOff;
+    if (lOff === 0 || rOff === 0) continue;
+
+    const rW = randInt(2, a - 1), rH = randInt(1, tH - 1);
+    // Check rect top-right is inside trapezoid
+    const leftEdgeAtRH = lOff * rH / tH;
+    const rightEdgeAtRH = a - rOff * rH / tH;
+    if (rW > rightEdgeAtRH) continue;
+
+    const x0 = randInt(0, GRID_SIZE - a);
+    const y0 = randInt(0, GRID_SIZE - tH);
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + a, y: y0 },
+      { x: x0 + a - rOff, y: y0 + tH }, { x: x0 + lOff, y: y0 + tH }
+    ];
+    const innerV = [
+      { x: x0, y: y0 }, { x: x0 + rW, y: y0 },
+      { x: x0 + rW, y: y0 + rH }, { x: x0, y: y0 + rH }
+    ];
+    return {
+      figure: 'mixed', template: 'trapMinusRect', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Трапец', dims: [a, b, tH], formulaType: 'trap', area: (a + b) * tH / 2 },
+        { label: 'Правоъгълник', dims: [rW, rH], formulaType: 'rect', area: rW * rH }
+      ],
+      subCentroids: [
+        { x: x0 + a / 2, y: y0 + tH / 2 },
+        { x: x0 + rW / 2, y: y0 + rH / 2 }
+      ],
+      totalArea: (a + b) * tH / 2 - rW * rH
+    };
+  }
+  return null;
+}
+
+// Parallelogram with a rectangle removed (rect in lower-left corner of para).
+function generateParaMinusRect() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const base = randInt(4, 6), pH = randInt(3, 5);
+    const off = randInt(1, 2);  // always lean right so inner rect fits in BL
+    if (base > GRID_SIZE || pH > GRID_SIZE) continue;
+    const xMax = base + off;
+    if (xMax > GRID_SIZE) continue;
+
+    const rW = randInt(2, base - 1), rH = randInt(1, pH - 1);
+    // At height rH the left edge of para is at x = off * rH / pH
+    // The rect left edge is at x=0 (relative), so check it fits
+    if (off * rH / pH > 0.001) continue;  // left edge must be at x0
+
+    // Actually for para leaning right: bottom-left is at x0, top-left at x0+off.
+    // At y=rH, the left edge is at x0 + off*rH/pH.
+    // For the rect to fit we need x0 + rW <= right edge at rH,
+    // and left edge at rH <= x0 (which only works if off=0, defeating purpose).
+    // Instead: rect shares the bottom side of the para.
+    // The rect must fit within the narrowest horizontal slice, which at rH
+    // is from x0 + off*rH/pH to x0 + base + off*rH/pH.
+    // Since the horizontal extent at any height is always `base`, rect with
+    // rW < base and aligned to the left edge at y=0 works if rW <= base and
+    // the rect top-left at (x0, y0+rH) is inside the para.
+    // Left edge at rH = x0 + off*rH/pH; rect left = x0. Need x0 >= x0 + off*rH/pH
+    // which requires off*rH/pH <= 0. Only works for off=0.
+    // Let's just align rect to start at the bottom-left and shift right a bit
+    // so it stays inside.
+    const leftAtRH = off * rH / pH;
+    const rX = Math.ceil(leftAtRH);  // shift rect right to stay inside
+    if (rX + rW > base) continue;
+
+    const x0 = randInt(0, GRID_SIZE - xMax);
+    const y0 = randInt(0, GRID_SIZE - pH);
+    const outerV = [
+      { x: x0, y: y0 }, { x: x0 + base, y: y0 },
+      { x: x0 + base + off, y: y0 + pH }, { x: x0 + off, y: y0 + pH }
+    ];
+    const innerV = [
+      { x: x0 + rX, y: y0 }, { x: x0 + rX + rW, y: y0 },
+      { x: x0 + rX + rW, y: y0 + rH }, { x: x0 + rX, y: y0 + rH }
+    ];
+    return {
+      figure: 'mixed', template: 'paraMinusRect', subtraction: true,
+      vertices: outerV, innerVertices: innerV,
+      subParts: [
+        { label: 'Успоредник', dims: [base, pH], formulaType: 'para', area: base * pH },
+        { label: 'Правоъгълник', dims: [rW, rH], formulaType: 'rect', area: rW * rH }
+      ],
+      subCentroids: [
+        { x: x0 + base / 2 + off / 2, y: y0 + pH / 2 },
+        { x: x0 + rX + rW / 2, y: y0 + rH / 2 }
+      ],
+      totalArea: base * pH - rW * rH
+    };
+  }
+  return null;
+}
+
+const SUBTRACTION_TEMPLATES = [
+  generateRectMinusRect,
+  generateRectMinusTri,
+  generateTriMinusTri,
+  generateRectMinusPara,
+  generateRectMinusTrap,
+  generateParaMinusTri,
+  generateTrapMinusTri,
+  generateTriMinusRect,
+  generateTrapMinusRect,
+  generateParaMinusRect
+];
+
 const MIXED_TEMPLATES = [
   generateHouse,
   generateRectTrapezoid,
@@ -1375,11 +1853,29 @@ const MIXED_TEMPLATES = [
   generateTriTrapTri
 ];
 
+function finalizeSubtraction(task) {
+  if (!task) return null;
+  // Simplify both polygons (strip collinear vertices)
+  task.vertices = simplifyPolygon(task.vertices);
+  task.innerVertices = simplifyPolygon(task.innerVertices);
+  if (task.vertices.length < 3 || task.innerVertices.length < 3) return null;
+  if (task.totalArea <= 0) return null;
+  return task;
+}
+
 function generateMixed() {
   for (let attempt = 0; attempt < 50; attempt++) {
-    const gen = MIXED_TEMPLATES[Math.floor(Math.random() * MIXED_TEMPLATES.length)];
-    const task = finalizeMixed(gen());
-    if (task) return task;
+    // ~30% chance of subtraction template
+    const useSub = Math.random() < 0.3 && SUBTRACTION_TEMPLATES.length > 0;
+    if (useSub) {
+      const gen = SUBTRACTION_TEMPLATES[Math.floor(Math.random() * SUBTRACTION_TEMPLATES.length)];
+      const task = finalizeSubtraction(gen());
+      if (task) return task;
+    } else {
+      const gen = MIXED_TEMPLATES[Math.floor(Math.random() * MIXED_TEMPLATES.length)];
+      const task = finalizeMixed(gen());
+      if (task) return task;
+    }
   }
   // Last-resort fallback: a guaranteed-valid house
   return finalizeMixed(generateHouse());
@@ -1445,19 +1941,25 @@ function transformFigure(task) {
   for (const [k, v] of Object.entries(task)) {
     out[k] = transformDeep(v, fn);
   }
-  // Enforce counter-clockwise A→B→C→D vertex ordering on every task, then
-  // rotate so label `A` starts at the leftmost vertex (ties broken by
-  // bottommost, i.e. smallest y) and proceeds counter-clockwise (→ right).
-  if (Array.isArray(out.vertices) && out.vertices.length >= 3) {
-    out.vertices = toCounterClockwise(out.vertices);
+  // Enforce counter-clockwise vertex ordering starting from the leftmost
+  // vertex (ties broken by bottommost). Applied to both outer and inner
+  // polygons so labels are consistent after any transform.
+  function orderVertices(verts) {
+    if (!Array.isArray(verts) || verts.length < 3) return verts;
+    verts = toCounterClockwise(verts);
     let leftIdx = 0;
-    for (let i = 1; i < out.vertices.length; i++) {
-      const v = out.vertices[i], best = out.vertices[leftIdx];
+    for (let i = 1; i < verts.length; i++) {
+      const v = verts[i], best = verts[leftIdx];
       if (v.x < best.x || (v.x === best.x && v.y < best.y)) leftIdx = i;
     }
     if (leftIdx > 0) {
-      out.vertices = out.vertices.slice(leftIdx).concat(out.vertices.slice(0, leftIdx));
+      verts = verts.slice(leftIdx).concat(verts.slice(0, leftIdx));
     }
+    return verts;
+  }
+  out.vertices = orderVertices(out.vertices);
+  if (Array.isArray(out.innerVertices)) {
+    out.innerVertices = orderVertices(out.innerVertices);
   }
   return out;
 }
@@ -1663,9 +2165,95 @@ function renderTriangleFigure(svg, task) {
 }
 
 function renderMixedFigure(svg, task) {
+  if (task.subtraction) {
+    renderSubtractionFigure(svg, task);
+    return;
+  }
   const labels = VERTEX_LABELS.slice(0, task.vertices.length);
   renderPolygon(svg, task.vertices, labels);
   const c = centroid(task.vertices);
+  renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
+}
+
+// Renders a subtraction figure: outer polygon with inner polygon "hole".
+// Only the ring area (outer minus inner) is shaded.
+function renderSubtractionFigure(svg, task) {
+  const outer = task.vertices;
+  const inner = task.innerVertices;
+
+  // Build SVG path with evenodd fill: outer CCW + inner CW = hole
+  const outerD = outer.map((v, i) => `${i === 0 ? 'M' : 'L'}${px(v.x)},${py(v.y)}`).join(' ') + ' Z';
+  // Reverse inner so winding is opposite
+  const innerRev = [...inner].reverse();
+  const innerD = innerRev.map((v, i) => `${i === 0 ? 'M' : 'L'}${px(v.x)},${py(v.y)}`).join(' ') + ' Z';
+
+  svg.appendChild(svgEl('path', {
+    d: outerD + ' ' + innerD,
+    'fill-rule': 'evenodd',
+    fill: 'rgba(124, 92, 191, 0.12)',
+    stroke: 'none'
+  }));
+
+  // Stroke outer polygon
+  const outerPts = outer.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: outerPts, fill: 'none',
+    stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linejoin': 'round'
+  }));
+
+  // Stroke inner polygon
+  const innerPts = inner.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: innerPts, fill: 'none',
+    stroke: '#7C5CBF', 'stroke-width': 2.5, 'stroke-linejoin': 'round',
+    'stroke-dasharray': '6,4'
+  }));
+
+  // Label outer vertices A, B, C, …
+  const outerLabels = VERTEX_LABELS.slice(0, outer.length);
+  const cx = outer.reduce((s, v) => s + v.x, 0) / outer.length;
+  const cy = outer.reduce((s, v) => s + v.y, 0) / outer.length;
+  outer.forEach((v, i) => {
+    const dx = (v.x - cx) * 0.18;
+    const dy = (v.y - cy) * 0.18;
+    svg.appendChild(svgEl('circle', {
+      cx: px(v.x), cy: py(v.y), r: 4,
+      fill: '#7C5CBF', stroke: '#fff', 'stroke-width': 2
+    }));
+    const label = svgEl('text', {
+      x: px(v.x) + dx * 3, y: py(v.y) - dy * 3 + 5,
+      'text-anchor': 'middle', 'font-size': 14, 'font-weight': 'bold',
+      fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif'
+    });
+    label.textContent = outerLabels[i];
+    svg.appendChild(label);
+  });
+
+  // Label inner vertices continuing from where outer left off
+  const innerLabels = VERTEX_LABELS.slice(outer.length, outer.length + inner.length);
+  const icx = inner.reduce((s, v) => s + v.x, 0) / inner.length;
+  const icy = inner.reduce((s, v) => s + v.y, 0) / inner.length;
+  inner.forEach((v, i) => {
+    // Skip labeling vertices that coincide with an outer vertex
+    const shared = outer.some(ov => ov.x === v.x && ov.y === v.y);
+    if (shared) return;
+    const dx = (v.x - icx) * 0.18;
+    const dy = (v.y - icy) * 0.18;
+    svg.appendChild(svgEl('circle', {
+      cx: px(v.x), cy: py(v.y), r: 4,
+      fill: '#D47B2F', stroke: '#fff', 'stroke-width': 2
+    }));
+    const label = svgEl('text', {
+      x: px(v.x) + dx * 3, y: py(v.y) - dy * 3 + 5,
+      'text-anchor': 'middle', 'font-size': 14, 'font-weight': 'bold',
+      fill: '#D47B2F', 'font-family': 'Nunito, sans-serif'
+    });
+    label.textContent = innerLabels[i];
+    svg.appendChild(label);
+  });
+
+  // Dimension marker
+  const c = centroid(outer);
   renderDimensionMarker(svg, c.x, c.y, config.cmPerSquare);
 }
 
@@ -2134,6 +2722,10 @@ function renderTrapezoidSolution(svg, task, correct) {
 // ===== Formula HTML =====
 
 function renderMixedSolution(svg, task, correct) {
+  if (task.subtraction) {
+    renderSubtractionSolution(svg, task, correct);
+    return;
+  }
   const color = correct ? '#4CAF50' : '#EF5350';
 
   // Reveal shared edges as dashed purple
@@ -2158,6 +2750,40 @@ function renderMixedSolution(svg, task, correct) {
   }));
 
   // Place S₁, S₂ labels at each sub-part centroid
+  if (task.subCentroids) {
+    task.subCentroids.forEach((c, i) => {
+      const label = svgEl('text', {
+        x: px(c.x), y: py(c.y) + 7,
+        'text-anchor': 'middle',
+        'font-size': 20, 'font-weight': 'bold',
+        fill: '#5E3DA6', 'font-family': 'Nunito, sans-serif',
+        stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
+      });
+      label.textContent = `S${toSubscript(i + 1)}`;
+      svg.appendChild(label);
+    });
+  }
+}
+
+function renderSubtractionSolution(svg, task, correct) {
+  const color = correct ? '#4CAF50' : '#EF5350';
+
+  // Re-outline outer polygon in answer color
+  const outerPts = task.vertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: outerPts, fill: 'none',
+    stroke: color, 'stroke-width': 3, 'stroke-linejoin': 'round'
+  }));
+
+  // Re-outline inner polygon in answer color (dashed)
+  const innerPts = task.innerVertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: innerPts, fill: 'none',
+    stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
+    'stroke-dasharray': '6,4'
+  }));
+
+  // S₁ label at outer centroid, S₂ at inner centroid
   if (task.subCentroids) {
     task.subCentroids.forEach((c, i) => {
       const label = svgEl('text', {
@@ -2214,6 +2840,9 @@ function subFormulaHTML(part, idx, cm) {
 }
 
 function mixedFormulaHTML(task, cm, area) {
+  if (task.subtraction) {
+    return subtractionFormulaHTML(task, cm, area);
+  }
   const subs = task.subParts.map((p, i) => subFormulaHTML(p, i + 1, cm)).join('');
   const sumExpr = task.subParts.map((_, i) => `S_${i + 1}`).join(' + ');
   if (task.subParts.length === 1) {
@@ -2222,6 +2851,14 @@ function mixedFormulaHTML(task, cm, area) {
   return `
     ${subs}
     $$S = ${sumExpr} = ${formatBG(area)} \\text{ cm}^2$$
+  `;
+}
+
+function subtractionFormulaHTML(task, cm, area) {
+  const subs = task.subParts.map((p, i) => subFormulaHTML(p, i + 1, cm)).join('');
+  return `
+    ${subs}
+    $$S = S_1 - S_2 = ${formatBG(task.subParts[0].area * cm * cm)} - ${formatBG(task.subParts[1].area * cm * cm)} = ${formatBG(area)} \\text{ cm}^2$$
   `;
 }
 
@@ -2347,7 +2984,17 @@ const MODULES = {
         trapTrap: 'Трапец + трапец',
         paraTrap: 'Успоредник + трапец',
         stepShape: 'Правоъгълник + правоъгълник',
-        triTrapTri: 'Триъгълник + трапец + триъгълник'
+        triTrapTri: 'Триъгълник + трапец + триъгълник',
+        rectMinusRect: 'Правоъгълник − правоъгълник',
+        rectMinusTri: 'Правоъгълник − триъгълник',
+        triMinusTri: 'Триъгълник − триъгълник',
+        rectMinusPara: 'Правоъгълник − успоредник',
+        rectMinusTrap: 'Правоъгълник − трапец',
+        paraMinusTri: 'Успоредник − триъгълник',
+        trapMinusTri: 'Трапец − триъгълник',
+        triMinusRect: 'Триъгълник − правоъгълник',
+        trapMinusRect: 'Трапец − правоъгълник',
+        paraMinusRect: 'Успоредник − правоъгълник'
       };
       return labels[task.template] || 'Смесена фигура';
     }
