@@ -2915,8 +2915,14 @@ function renderSubtractionSolution(svg, task, correct) {
   strokePolygonMinusShared(svg, task.vertices, task.innerVertices, {
     stroke: color, 'stroke-width': 3, 'stroke-linecap': 'round'
   });
-  // Re-outline full inner polygon with dotted line (including shared edges)
+  // Re-outline full inner polygon with dotted line (including shared edges).
+  // Draw a white backing line first so the dotted line is visible even on
+  // edges that overlap with the fill boundary or other strokes.
   const innerPts = task.innerVertices.map(v => `${px(v.x)},${py(v.y)}`).join(' ');
+  svg.appendChild(svgEl('polygon', {
+    points: innerPts, fill: 'none',
+    stroke: '#fff', 'stroke-width': 4, 'stroke-linejoin': 'round'
+  }));
   svg.appendChild(svgEl('polygon', {
     points: innerPts, fill: 'none',
     stroke: color, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
