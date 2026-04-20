@@ -1898,7 +1898,7 @@ function renderFrameSolution(svg, task, correct) {
   const frameH = decomp.bboxHeight * CELL_PX;
   svg.appendChild(svgEl('rect', {
     x: frameX, y: frameY, width: frameW, height: frameH,
-    fill: 'none', stroke: '#d32f2f', 'stroke-width': 2.5,
+    fill: 'none', stroke: color, 'stroke-width': 2.5,
     'stroke-dasharray': '6,3'
   }));
 
@@ -1908,7 +1908,7 @@ function renderFrameSolution(svg, task, correct) {
     const hypotenuse = svgEl('line', {
       x1: px(piece.pV.x), y1: py(piece.pV.y),
       x2: px(piece.pH.x), y2: py(piece.pH.y),
-      stroke: '#d32f2f', 'stroke-width': 1.5,
+      stroke: color, 'stroke-width': 1.5,
       'stroke-dasharray': '4,3', 'stroke-linecap': 'round'
     });
     svg.appendChild(hypotenuse);
@@ -1919,7 +1919,7 @@ function renderFrameSolution(svg, task, correct) {
       x: px(centroidX), y: py(centroidY) + 6,
       'text-anchor': 'middle',
       'font-size': 18, 'font-weight': 'bold',
-      fill: '#d32f2f', 'font-family': 'Nunito, sans-serif',
+      fill: color, 'font-family': 'Nunito, sans-serif',
       stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke'
     });
     label.textContent = `S${toSubscript(idx + 1)}`;
@@ -2673,8 +2673,9 @@ function showScoreScreen() {
 // ===== Utilities =====
 
 function formatBG(num) {
-  const rounded = Math.round(num * 100) / 100;
-  const str = String(rounded);
+  // Remove trailing-zero float noise but keep meaningful precision.
+  // parseFloat drops trailing zeros from toPrecision/toFixed.
+  const str = String(parseFloat(num.toPrecision(10)));
   return str.replace('.', ',');
 }
 
