@@ -132,11 +132,16 @@ jobs:
               --query 'FunctionUrl' --output text)
           fi
 
-          # Ensure public invoke permission is attached. Drop any existing
-          # statement first so we always end up with a known-good one.
+          # Public Function URL access requires BOTH lambda:InvokeFunctionUrl
+          # (with auth-type NONE condition) AND lambda:InvokeFunction. Drop
+          # any existing statements first so we always end up with known-good
+          # ones.
           aws lambda remove-permission \
             --function-name "$LAMBDA_NAME" \
             --statement-id FunctionURLAllowPublicAccess 2>/dev/null || true
+          aws lambda remove-permission \
+            --function-name "$LAMBDA_NAME" \
+            --statement-id PublicInvokeFunction 2>/dev/null || true
 
           aws lambda add-permission \
             --function-name "$LAMBDA_NAME" \
@@ -144,6 +149,12 @@ jobs:
             --action lambda:InvokeFunctionUrl \
             --principal "*" \
             --function-url-auth-type NONE
+
+          aws lambda add-permission \
+            --function-name "$LAMBDA_NAME" \
+            --statement-id PublicInvokeFunction \
+            --action lambda:InvokeFunction \
+            --principal "*"
 
           echo "url=${URL}" >> "$GITHUB_OUTPUT"
           echo "Lambda URL: $URL"
