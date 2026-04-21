@@ -1,6 +1,6 @@
 // ===== Figure Areas - Thin Client =====
 
-const API_URL = '__LAMBDA_URL__';
+const API_URL = '__LAMBDA_URL__'.replace(/\/$/, '');
 
 // --- Heading titles per figure type ---
 const TITLES = {
