@@ -3010,12 +3010,10 @@ function renderSolutionSVG(task, moduleId, correct, cmPerSquare) {
 // ===== Lambda Handler =====
 
 exports.handler = async (event) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+  // CORS headers come from the Function URL CORS config, not the handler.
+  // Setting them here would duplicate Access-Control-Allow-Origin and
+  // browsers reject the response.
+  const headers = { 'Content-Type': 'application/json' };
 
   if (event.requestContext?.http?.method === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
