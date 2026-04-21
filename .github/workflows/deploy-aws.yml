@@ -168,6 +168,9 @@ jobs:
       - name: Inject Lambda URL into client JS
         run: sed -i "s|__LAMBDA_URL__|${{ steps.lambda_url.outputs.url }}|g" client/js/figure-areas-client.js
 
+      - name: Bust client JS cache with commit SHA
+        run: sed -i "s|figure-areas-client.js?v=[^\"]*|figure-areas-client.js?v=${GITHUB_SHA::8}|g" client/figure-areas.html
+
       - name: Sync static files to S3
         run: |
           # Upload all web files
@@ -181,8 +184,11 @@ jobs:
             --include "assets/*" \
             --include "data/*"
 
-          # Overwrite figure-areas.html with client version (uses API)
-          aws s3 cp client/figure-areas.html "s3://${S3_BUCKET}/pages/figure-areas.html"
+          # Overwrite figure-areas.html with client version (uses API). HTML
+          # is no-cache so the browser always re-validates and picks up the
+          # SHA-versioned JS URL on the next deploy.
+          aws s3 cp client/figure-areas.html "s3://${S3_BUCKET}/pages/figure-areas.html" \
+            --cache-control "no-cache"
 
           # Copy client JS
           aws s3 cp client/js/figure-areas-client.js "s3://${S3_BUCKET}/js/figure-areas-client.js"
