@@ -148,11 +148,6 @@ jobs:
           echo "url=${URL}" >> "$GITHUB_OUTPUT"
           echo "Lambda URL: $URL"
 
-          echo "--- Function URL config ---"
-          aws lambda get-function-url-config --function-name "$LAMBDA_NAME"
-          echo "--- Resource policy ---"
-          aws lambda get-policy --function-name "$LAMBDA_NAME" 2>&1 || true
-
       # ---------- Deploy static files ----------
 
       - name: Inject Lambda URL into client JS
