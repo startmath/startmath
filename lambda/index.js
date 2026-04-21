@@ -5,11 +5,13 @@ const crypto = require('crypto');
 // ===== Encryption =====
 
 const HMAC_SECRET = process.env.HMAC_SECRET || 'dev-secret';
+// scrypt is a deliberately slow KDF (~600ms on 128MB Lambda). Derive once at
+// module load so warm invocations don't pay it per encrypt/decrypt.
+const KEY = crypto.scryptSync(HMAC_SECRET, 'salt', 32);
 
 function encryptTask(task) {
-  const key = crypto.scryptSync(HMAC_SECRET, 'salt', 32);
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const cipher = crypto.createCipheriv('aes-256-gcm', KEY, iv);
   let encrypted = cipher.update(JSON.stringify(task), 'utf8', 'base64');
   encrypted += cipher.final('base64');
   const tag = cipher.getAuthTag();
@@ -18,10 +20,9 @@ function encryptTask(task) {
 
 function decryptTask(token) {
   const [ivB64, tagB64, data] = token.split('.');
-  const key = crypto.scryptSync(HMAC_SECRET, 'salt', 32);
   const iv = Buffer.from(ivB64, 'base64');
   const tag = Buffer.from(tagB64, 'base64');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', KEY, iv);
   decipher.setAuthTag(tag);
   let decrypted = decipher.update(data, 'base64', 'utf8');
   decrypted += decipher.final('utf8');
