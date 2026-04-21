@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      AWS_DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: eu-central-1
       S3_BUCKET: startmath-site
       LAMBDA_NAME: startmath-api
 
@@ -28,7 +28,17 @@ jobs:
       - name: Create S3 bucket (idempotent)
         run: |
           if ! aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
-            aws s3api create-bucket --bucket "$S3_BUCKET" --region "$AWS_DEFAULT_REGION"
+            # us-east-1 is the only region where create-bucket must NOT
+            # receive a LocationConstraint. Everywhere else (e.g.
+            # eu-central-1), it's required.
+            if [ "$AWS_DEFAULT_REGION" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$S3_BUCKET" --region us-east-1
+            else
+              aws s3api create-bucket \
+                --bucket "$S3_BUCKET" \
+                --region "$AWS_DEFAULT_REGION" \
+                --create-bucket-configuration LocationConstraint="$AWS_DEFAULT_REGION"
+            fi
           fi
 
       - name: Configure S3 website hosting
@@ -179,5 +189,12 @@ jobs:
 
       - name: Print URLs
         run: |
-          echo "S3 Website: http://${S3_BUCKET}.s3-website-us-east-1.amazonaws.com"
+          # us-east-1 uses the legacy dashed form; every other region uses
+          # the dotted form.
+          if [ "$AWS_DEFAULT_REGION" = "us-east-1" ]; then
+            SITE_HOST="${S3_BUCKET}.s3-website-us-east-1.amazonaws.com"
+          else
+            SITE_HOST="${S3_BUCKET}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com"
+          fi
+          echo "S3 Website: http://${SITE_HOST}"
           echo "Lambda API: ${{ steps.lambda_url.outputs.url }}"
