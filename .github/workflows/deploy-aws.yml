@@ -132,21 +132,18 @@ jobs:
               --query 'FunctionUrl' --output text)
           fi
 
-          # Ensure public invoke permission is attached (idempotent).
-          # ResourceConflictException = already exists; tolerate that and only that.
-          ADD_PERM_OUT=$(aws lambda add-permission \
+          # Ensure public invoke permission is attached. Drop any existing
+          # statement first so we always end up with a known-good one.
+          aws lambda remove-permission \
+            --function-name "$LAMBDA_NAME" \
+            --statement-id FunctionURLAllowPublicAccess 2>/dev/null || true
+
+          aws lambda add-permission \
             --function-name "$LAMBDA_NAME" \
             --statement-id FunctionURLAllowPublicAccess \
             --action lambda:InvokeFunctionUrl \
             --principal "*" \
-            --function-url-auth-type NONE 2>&1) || {
-            if echo "$ADD_PERM_OUT" | grep -q ResourceConflictException; then
-              echo "Public invoke permission already exists."
-            else
-              echo "$ADD_PERM_OUT"
-              exit 1
-            fi
-          }
+            --function-url-auth-type NONE
 
           echo "url=${URL}" >> "$GITHUB_OUTPUT"
           echo "Lambda URL: $URL"
