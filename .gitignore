@@ -3,3 +3,6 @@ Thumbs.db
 *.pdf
 .claude/
 instructions.txt
+node_modules/
+lambda.zip
+lambda/lambda.zip

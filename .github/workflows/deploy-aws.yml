@@ -1,0 +1,173 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET: startmath-site
+      LAMBDA_NAME: startmath-api
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # ---------- S3 static site ----------
+
+      - name: Create S3 bucket (idempotent)
+        run: |
+          if ! aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
+            aws s3api create-bucket --bucket "$S3_BUCKET" --region us-east-1
+          fi
+
+      - name: Configure S3 website hosting
+        run: |
+          aws s3api put-public-access-block --bucket "$S3_BUCKET" \
+            --public-access-block-configuration \
+            'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false'
+
+          aws s3api put-bucket-policy --bucket "$S3_BUCKET" --policy "{
+            \"Version\": \"2012-10-17\",
+            \"Statement\": [{
+              \"Sid\": \"PublicReadGetObject\",
+              \"Effect\": \"Allow\",
+              \"Principal\": \"*\",
+              \"Action\": \"s3:GetObject\",
+              \"Resource\": \"arn:aws:s3:::${S3_BUCKET}/*\"
+            }]
+          }"
+
+          aws s3 website "s3://${S3_BUCKET}" --index-document index.html
+
+      # ---------- Lambda ----------
+
+      - name: Zip Lambda
+        run: cd lambda && zip -r ../lambda.zip . && cd ..
+
+      - name: Create or update Lambda
+        run: |
+          ROLE_ARN=""
+
+          # Create IAM role if it doesn't exist
+          if ! aws iam get-role --role-name startmath-lambda-role 2>/dev/null; then
+            aws iam create-role \
+              --role-name startmath-lambda-role \
+              --assume-role-policy-document '{
+                "Version": "2012-10-17",
+                "Statement": [{
+                  "Effect": "Allow",
+                  "Principal": {"Service": "lambda.amazonaws.com"},
+                  "Action": "sts:AssumeRole"
+                }]
+              }'
+            aws iam attach-role-policy \
+              --role-name startmath-lambda-role \
+              --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+            # Wait for role to propagate
+            sleep 10
+          fi
+
+          ROLE_ARN=$(aws iam get-role --role-name startmath-lambda-role --query 'Role.Arn' --output text)
+
+          # Create or update Lambda function
+          if aws lambda get-function --function-name "$LAMBDA_NAME" 2>/dev/null; then
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_NAME" \
+              --zip-file fileb://lambda.zip
+
+            # Wait for update to complete before changing config
+            aws lambda wait function-updated --function-name "$LAMBDA_NAME"
+
+            aws lambda update-function-configuration \
+              --function-name "$LAMBDA_NAME" \
+              --runtime nodejs20.x \
+              --handler index.handler \
+              --memory-size 128 \
+              --timeout 10 \
+              --environment "Variables={HMAC_SECRET=${{ secrets.HMAC_SECRET }}}"
+          else
+            aws lambda create-function \
+              --function-name "$LAMBDA_NAME" \
+              --runtime nodejs20.x \
+              --handler index.handler \
+              --role "$ROLE_ARN" \
+              --zip-file fileb://lambda.zip \
+              --memory-size 128 \
+              --timeout 10 \
+              --environment "Variables={HMAC_SECRET=${{ secrets.HMAC_SECRET }}}"
+          fi
+
+          aws lambda wait function-updated --function-name "$LAMBDA_NAME" 2>/dev/null || true
+
+      - name: Create Lambda Function URL (idempotent)
+        id: lambda_url
+        run: |
+          URL=$(aws lambda get-function-url-config --function-name "$LAMBDA_NAME" --query 'FunctionUrl' --output text 2>/dev/null || true)
+
+          if [ -z "$URL" ] || [ "$URL" = "None" ]; then
+            # Add public invoke permission
+            aws lambda add-permission \
+              --function-name "$LAMBDA_NAME" \
+              --statement-id FunctionURLAllowPublicAccess \
+              --action lambda:InvokeFunctionUrl \
+              --principal "*" \
+              --function-url-auth-type NONE 2>/dev/null || true
+
+            URL=$(aws lambda create-function-url-config \
+              --function-name "$LAMBDA_NAME" \
+              --auth-type NONE \
+              --cors '{
+                "AllowOrigins": ["*"],
+                "AllowMethods": ["POST", "OPTIONS"],
+                "AllowHeaders": ["content-type"]
+              }' \
+              --query 'FunctionUrl' --output text)
+          fi
+
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "Lambda URL: $URL"
+
+      # ---------- Deploy static files ----------
+
+      - name: Inject Lambda URL into client JS
+        run: sed -i "s|__LAMBDA_URL__|${{ steps.lambda_url.outputs.url }}|g" client/js/figure-areas-client.js
+
+      - name: Sync static files to S3
+        run: |
+          # Upload all web files
+          aws s3 sync . "s3://${S3_BUCKET}" \
+            --exclude "*" \
+            --include "index.html" \
+            --include "favicon.ico" \
+            --include "pages/*" \
+            --include "js/*" \
+            --include "styles/*" \
+            --include "assets/*" \
+            --include "data/*"
+
+          # Overwrite figure-areas.html with client version (uses API)
+          aws s3 cp client/figure-areas.html "s3://${S3_BUCKET}/pages/figure-areas.html"
+
+          # Copy client JS
+          aws s3 cp client/js/figure-areas-client.js "s3://${S3_BUCKET}/js/figure-areas-client.js"
+
+      - name: Print URLs
+        run: |
+          echo "S3 Website: http://${S3_BUCKET}.s3-website-us-east-1.amazonaws.com"
+          echo "Lambda API: ${{ steps.lambda_url.outputs.url }}"
