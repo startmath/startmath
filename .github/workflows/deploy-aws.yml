@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_DEFAULT_REGION: eu-central-1
-      S3_BUCKET: startmath-site
+      S3_BUCKET: startmath-eu
       LAMBDA_NAME: startmath-api
 
     steps:
