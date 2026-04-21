@@ -134,8 +134,8 @@ jobs:
               --auth-type NONE \
               --cors '{
                 "AllowOrigins": ["*"],
-                "AllowMethods": ["POST", "OPTIONS"],
-                "AllowHeaders": ["content-type"]
+                "AllowMethods": ["*"],
+                "AllowHeaders": ["*"]
               }' \
               --query 'FunctionUrl' --output text)
           fi
